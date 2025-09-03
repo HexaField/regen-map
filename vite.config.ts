@@ -13,17 +13,23 @@ dotenv.config({
   path: packageRoot.path + '/.env.local'
 })
 
-export default defineConfig(({ command }) => ({
-  server: {
-    host: true,
-    ...(command === 'serve'
-      ? {
-          https: {
-            key: fs.readFileSync(path.join(packageRoot.path, process.env.KEY || 'certs/key.pem')),
-            cert: fs.readFileSync(path.join(packageRoot.path, process.env.CERT || 'certs/cert.pem'))
+export default defineConfig(({ command }) => {
+  const baseFromEnv = process.env.PUBLIC_BASE_PATH
+  const base = command === 'build' ? baseFromEnv || '/' : '/'
+
+  return {
+    base,
+    server: {
+      host: true,
+      ...(command === 'serve'
+        ? {
+            https: {
+              key: fs.readFileSync(path.join(packageRoot.path, process.env.KEY || 'certs/key.pem')),
+              cert: fs.readFileSync(path.join(packageRoot.path, process.env.CERT || 'certs/cert.pem'))
+            }
           }
-        }
-      : {})
-  },
-  plugins: [react(), tailwindcss()]
-}))
+        : {})
+    },
+    plugins: [react(), tailwindcss()]
+  }
+})
