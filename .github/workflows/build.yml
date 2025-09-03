@@ -21,11 +21,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Detect lockfile
+        id: lock
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "cache=npm" >> "$GITHUB_OUTPUT"
+            echo "lockfile=package-lock.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache=" >> "$GITHUB_OUTPUT"
+            echo "lockfile=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node (with cache)
+        if: steps.lock.outputs.cache != ''
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: ${{ steps.lock.outputs.cache }}
+          cache-dependency-path: ${{ steps.lock.outputs.lockfile }}
+
+      - name: Setup Node (no cache)
+        if: steps.lock.outputs.cache == ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install dependencies (npm ci if lockfile exists)
         run: |
