@@ -16,59 +16,59 @@ concurrency:
 
 jobs:
   build:
-  environment: github-pages
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    environment: github-pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Detect lockfile
-      id: lock
-      run: |
-        if [ -f package-lock.json ]; then
-          echo "cache=npm" >> "$GITHUB_OUTPUT"
-          echo "lockfile=package-lock.json" >> "$GITHUB_OUTPUT"
-        else
-          echo "cache=" >> "$GITHUB_OUTPUT"
-          echo "lockfile=" >> "$GITHUB_OUTPUT"
-        fi
+      - name: Detect lockfile
+        id: lock
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "cache=npm" >> "$GITHUB_OUTPUT"
+            echo "lockfile=package-lock.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache=" >> "$GITHUB_OUTPUT"
+            echo "lockfile=" >> "$GITHUB_OUTPUT"
+          fi
 
-    - name: Setup Node (with cache)
-      if: steps.lock.outputs.cache != ''
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: ${{ steps.lock.outputs.cache }}
-        cache-dependency-path: ${{ steps.lock.outputs.lockfile }}
+      - name: Setup Node (with cache)
+        if: steps.lock.outputs.cache != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: ${{ steps.lock.outputs.cache }}
+          cache-dependency-path: ${{ steps.lock.outputs.lockfile }}
 
-    - name: Setup Node (no cache)
-      if: steps.lock.outputs.cache == ''
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+      - name: Setup Node (no cache)
+        if: steps.lock.outputs.cache == ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-    - name: Install dependencies (npm ci if lockfile exists)
-      run: |
-        if [ -f package-lock.json ]; then
-          npm ci
-        else
-          npm install
-        fi
+      - name: Install dependencies (npm ci if lockfile exists)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
-    - name: Build (with configurable base path)
-      env:
-        PUBLIC_BASE_PATH: ${{ secrets.PUBLIC_BASE_PATH }}
-      run: |
-        echo "Building with base path: ${PUBLIC_BASE_PATH:-/}"
-        npm run build -- --base "${PUBLIC_BASE_PATH:-/}"
+      - name: Build (with configurable base path)
+        env:
+          PUBLIC_BASE_PATH: ${{ secrets.PUBLIC_BASE_PATH }}
+        run: |
+          echo "Building with base path: ${PUBLIC_BASE_PATH:-/}"
+          npm run build -- --base "${PUBLIC_BASE_PATH:-/}"
 
-    - name: Configure Pages
-      uses: actions/configure-pages@v5
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: dist
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
 
   deploy:
     environment:
