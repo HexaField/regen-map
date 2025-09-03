@@ -1,0 +1,4 @@
+- Keep UI, State & APIs files in separate files, this aids in modularity and composability
+- Always use @hexafield/simple-store/react for both local and global state definitions
+- Define reusable state actions as functions in the same file as the state definition
+- Reusable UI components should only have side effects within it's own scope, all other interactions should go through state prop callbacks
