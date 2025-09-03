@@ -1,7 +1,10 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import React from 'react'
 
-import { AppTab, AppTabState, SearchQueryState, toggleNodePanel, ViewMode, ViewModeState } from '../../state/app'
+import { AppTab, AppTabState } from '../../state/AppTabsState'
+import { toggleNodePanel } from '../../state/NodePanelState'
+import { SearchQueryState } from '../../state/SearchState'
+import { ViewMode, ViewModeState } from '../../state/ViewModeState'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Segmented } from '../ui/Segmented'

@@ -1,14 +1,13 @@
-import React from 'react'
 import { useSimpleStore } from '@hexafield/simple-store/react'
-import {
-  AppTabState,
-  CommunityCardsState,
-  NetworkProvidersState,
-  UploadsState
-} from '../../state/app'
+import React from 'react'
+
+import { AppTabState } from '../../state/AppTabsState'
+import { CommunityCardsState } from '../../state/CommunityCardsState'
+import { NetworkProvidersState } from '../../state/NetworkProvidersState'
+import { UploadsState } from '../../state/UploadsState'
+import { Button } from '../ui/Button'
 import { Card, CardContent, CardHeader } from '../ui/Card'
 import { Input } from '../ui/Input'
-import { Button } from '../ui/Button'
 
 export function LeftPanels() {
   const [tab] = useSimpleStore(AppTabState)
@@ -70,7 +69,9 @@ function VisualizeNetworkPanel() {
               <div className="text-[12px] text-neutral-500 mb-2">Map your {p.name.toLowerCase()} friends</div>
               <div className="flex items-center gap-2">
                 <Input placeholder={p.placeholder} className="flex-1" />
-                <Button variant="ghost" className="rounded-full h-10 w-10">+</Button>
+                <Button variant="ghost" className="rounded-full h-10 w-10">
+                  +
+                </Button>
               </div>
             </CardContent>
           </Card>
