@@ -1,11 +1,12 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
-import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
-import React, { useEffect, useRef } from 'react'
+import ForceGraph3D, { LinkObject, type ForceGraph3DInstance } from '3d-force-graph'
+import React, { useCallback, useEffect, useRef } from 'react'
 import SpriteText from 'three-spritetext'
 
 import {
   Entity,
   FocusedNodeState,
+  GraphDataType,
   GraphState,
   Link,
   Node,
@@ -14,45 +15,94 @@ import {
   setFocusedNode
 } from '../../state/GraphState'
 import { SelectedProfileState } from '../../state/ProfileState'
+import { fetchSheets } from './GoogleSheets'
 
-const key = import.meta.env.VITE_GOOGLE_SHEETS_API
-const spreadsheetId = '1cs3E9rhzW_wtLg4O7ybIIXkU5gCS_Q0dA5csQ0MVY6g'
+const getLinkKey = (link: Link) =>
+  `${typeof link.source === 'string' ? link.source : link.source.id}-${link.type}-${typeof link.target === 'string' ? link.target : link.target.id}`
 
-const fetchSheet = async (range: string) => {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueRenderOption=UNFORMATTED_VALUE&key=${key}`
-  const res = await fetch(url, { cache: 'no-store' }) // avoid browser cache
-  const data = await res.json() // { range, majorDimension, values: [...] }
-  // data.values is an array of arrays (rows)
-  const values = data.values
-  const headers = values[0] as string[] // first row is the header
-  const rows = values.slice(1) as string[][] // remaining rows are the data
+const mergeNodes = (prevData: GraphDataType, rawData: GraphDataType) => {
+  /** Update nodes whilst preserving existing simulation */
+  const existingNodeIDs = new Set<string>(prevData.nodes.map((n) => n.id))
+  const existingLinksIDs = new Set<string>(prevData.links.map(getLinkKey))
 
-  const result = rows.map((row) => {
-    const entry = {} as Record<string, string | string[]>
-    headers.forEach((header, i) => {
-      const rowArray = row[i]?.includes(',') ? row[i].split(',').map((item) => item.trim()) : row[i]
-      entry[header] = rowArray
-    })
-    return entry
-  })
+  const seenNodeIDs = new Set<string>()
+  const seenLinkIDs = new Set<string>()
 
-  return result
-}
+  const seenNodeNames = new Map<string, Entity>()
 
-const fetchSheets = async () => {
-  const [entities, relationships, ecosystemEntities, ecosystemRelationships] = await Promise.all([
-    fetchSheet(encodeURIComponent('Entities')),
-    fetchSheet(encodeURIComponent('Relationships')),
-    fetchSheet(encodeURIComponent('EcosystemEntities')),
-    fetchSheet(encodeURIComponent('EcosystemRelationships'))
-  ])
+  // get all new data
+  const newNodesData = [] as Node[]
+  const newLinksData = [] as Link[]
 
-  console.log({ entities, relationships, ecosystemEntities, ecosystemRelationships })
-  return { entities, relationships, ecosystemEntities, ecosystemRelationships } as {
-    entities: Entity[]
-    relationships: Relationship[]
-    ecosystemEntities: Entity[]
-    ecosystemRelationships: Relationship[]
+  const nodes = rawData.nodes as Node[]
+
+  // Add person nodes
+  for (const node of nodes) {
+    if (seenNodeNames.has(node.name)) {
+      continue
+    }
+    seenNodeIDs.add(node.id as string)
+    seenNodeNames.set(node.name, node)
+    if (!existingNodeIDs.has(node.id as string)) {
+      newNodesData.push(node)
+    }
+  }
+
+  // remove old nodes
+  for (let i = prevData.nodes.length - 1; i >= 0; i--) {
+    const node = prevData.nodes[i]
+    if (!seenNodeIDs.has(node.id)) {
+      // this node is not in the new data, remove it
+      prevData.nodes.splice(i, 1)
+    }
+  }
+
+  // add new nodes and links
+  prevData.nodes.push(...newNodesData)
+
+  for (const link of rawData.links) {
+    const linkKey = getLinkKey(link)
+    seenLinkIDs.add(linkKey)
+    if (!existingLinksIDs.has(linkKey)) {
+      newLinksData.push(link)
+    }
+  }
+
+  // remove old links
+  for (let i = prevData.links.length - 1; i >= 0; i--) {
+    const link = prevData.links[i]
+    const linkKey = getLinkKey(link)
+    if (!seenLinkIDs.has(linkKey)) {
+      // this link is not in the new data, remove it
+      prevData.links.splice(i, 1)
+    }
+  }
+
+  prevData.links.push(...newLinksData)
+
+  let lastLinkIndex =
+    prevData.links.find((l) => typeof l.source !== 'string' && typeof l.target !== 'string')?.index ?? 0
+
+  for (const link of prevData.links) {
+    // ensure source and target are NodeData objects, and add index and __controlPoints if missing to fix bug in force-graph
+    if (typeof link.source === 'string') {
+      const sourceNode = prevData.nodes.find((n) => n.id === link.source.id)
+      const targetNode = prevData.nodes.find((n) => n.id === link.target.id)
+
+      link.source = sourceNode!
+      link.target = targetNode!
+      link.index = lastLinkIndex++
+      link.__controlPoints = null
+      link.__indexColor = '#a8001e'
+    }
+  }
+
+  console.log('Merged graph data', prevData)
+
+  // return prevData
+  return {
+    nodes: prevData.nodes,
+    links: prevData.links
   }
 }
 
@@ -74,76 +124,7 @@ export const Graph = () => {
     fetchSheets()
       .then((sheetData) => {
         if (cancelled) return
-        const entities = [sheetData.entities, sheetData.ecosystemEntities].flat().filter((e) => !!e.predicate)
-        // Align node ids with relationship URLs so links resolve
-        const nodes: Node[] = entities.map((entity) => ({
-          ...entity,
-          type: entity.predicate.split(':')[0] as 'person' | 'project' | 'organization',
-          id: entity.predicate
-        }))
-        const relationships = [sheetData.relationships, sheetData.ecosystemRelationships]
-          .flat()
-          .filter((e) => !!e.predicate_url)
-
-        // Build initial edges array
-        const edges: Link[] = relationships
-          .filter((e) => nodes.find((n) => n.id === e.subject_url) && nodes.find((n) => n.id === e.object_url)) // filter out incomplete edges
-          .map((edge, i) => {
-            // ensure source and target are NodeData objects, and add index and __controlPoints if missing to fix bug in force-graph
-            const sourceNode = nodes.find((n) => n.id === edge.subject_url)
-            const targetNode = nodes.find((n) => n.id === edge.object_url)
-
-            return {
-              source: sourceNode!,
-              target: targetNode!,
-              index: i++,
-              __controlPoints: null,
-              __indexColor: '#a8001e',
-              type: edge.predicate_url.split('/').at(-1) || 'relatedTo',
-              meta: edge.meta
-            }
-          })
-
-        // Compute multi-link curvature so parallel links bow outwards and don't overlap
-        // Group links by unordered pair of node ids
-        const groups = new Map<string, Link[]>()
-        for (const l of edges) {
-          const a = (l.source as Node).id
-          const b = (l.target as Node).id
-          const key = a < b ? `${a}__${b}` : `${b}__${a}`
-          if (!groups.has(key)) groups.set(key, [])
-          groups.get(key)!.push(l)
-        }
-        const BOW_STEP = 0.2 // curvature step between parallel links
-        for (const [key, links] of groups.entries()) {
-          if (links.length === 1) {
-            // straight line
-            links[0].curvature = 0
-            links[0].curveRotation = 0
-            links[0].multiIndex = 0
-            links[0].multiCount = 1
-            continue
-          }
-          // sort for stable assignment (optionally by type then index)
-          links.sort((l1, l2) => (l1.type || '').localeCompare(l2.type || '') || l1.index - l2.index)
-          const count = links.length
-          // Distribute indices around zero: e.g., 4 -> [-1.5,-0.5,0.5,1.5], 3 -> [-1,0,1]
-          const offsets = links.map((_, i) => i - (count - 1) / 2)
-          links.forEach((l, i) => {
-            l.multiIndex = i
-            l.multiCount = count
-            l.curvature = offsets[i] * BOW_STEP
-            // rotate each curved link around its axis so they spread in a ring for 3D. Use golden angle for variety.
-            const golden = Math.PI * (3 - Math.sqrt(5))
-            l.curveRotation = (i * golden) % (Math.PI * 2)
-          })
-        }
-
-        setData((prev) => {
-          prev.nodes = nodes
-          prev.links = edges
-          return prev
-        })
+        setData(mergeNodes(data, sheetData))
       })
       .catch((err) => {
         // eslint-disable-next-line no-console
@@ -313,15 +294,34 @@ export const Graph = () => {
     setFocusedNode(data.nodes.find((n) => n.id === profile.id)!)
   }, [profile?.id])
 
+  const focus = useCallback(() => {
+    fgRef.current?.zoomToFit(400, 40)
+  }, [fgRef.current])
+
+  // Bind F key to focus
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'f') {
+        event.preventDefault()
+        focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [focus])
+
   // update data on instance when it changes
   useEffect(() => {
     if (!fgRef.current) return
     fgRef.current.graphData(data)
     // try to fit the graph nicely on first load of data
     if (data.nodes?.length) {
-      setTimeout(() => fgRef.current?.zoomToFit(400, 40), 0)
+      setTimeout(focus, 0)
+      setTimeout(focus, 500)
     }
-  }, [data.links, data.nodes])
+  }, [data])
 
   // cleanup on unmount
   useEffect(() => {

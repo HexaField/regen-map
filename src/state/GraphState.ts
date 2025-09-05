@@ -43,8 +43,13 @@ export type Link = {
   multiCount?: number
 }
 
+export type GraphDataType = {
+  nodes: Node[]
+  links: Link[]
+}
+
 // Right drawer (Node Information/Profile)
-export const GraphState = createSimpleStore<{ nodes: Node[]; links: Link[] }>({
+export const GraphState = createSimpleStore<GraphDataType>({
   nodes: [],
   links: []
 })
