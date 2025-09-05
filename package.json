@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@hexafield/simple-store": "^1.0.1",
+    "3d-force-graph": "^1.78.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   }

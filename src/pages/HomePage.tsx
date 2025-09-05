@@ -12,7 +12,7 @@ export function HomePage() {
       <TopControls />
 
       {/* Main content area with big circle placeholder for the globe */}
-      <div className="flex justify-center">
+      <div className="absolute flex justify-center">
         <Graph />
       </div>
 
