@@ -7,8 +7,7 @@ interface ViteTypeOptions {
 }
 
 interface ImportMetaEnv {
-  readonly VITE_APP_TITLE: string
-  // more env variables...
+  readonly VITE_GOOGLE_SHEETS_API: string
 }
 
 interface ImportMeta {
