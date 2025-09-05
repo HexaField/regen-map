@@ -1,8 +1,9 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
-import React from 'react'
+import React, { useEffect } from 'react'
 
-import avatarImg from '../../assets/placeholder-avatar.png'
+import placeholder from '../../assets/placeholder-avatar.webp'
 import rectangleImg from '../../assets/placeholder-background.png'
+import { GraphState, setFocusedNode } from '../../state/GraphState'
 import { NodePanelOpenState } from '../../state/NodePanelState'
 import { SelectedProfileState } from '../../state/ProfileState'
 import { Button } from '../ui/Button'
@@ -12,6 +13,11 @@ import { Chip } from '../ui/Chip'
 export function RightDrawer() {
   const [open, setOpen] = useSimpleStore(NodePanelOpenState)
   const [profile] = useSimpleStore(SelectedProfileState)
+
+  useEffect(() => {
+    setOpen(!!profile?.id)
+  }, [!!profile])
+
   return (
     <div
       className={[
@@ -26,7 +32,7 @@ export function RightDrawer() {
           <CardContent>
             <div className="-mt-10 mb-2">
               <div className="w-16 h-16 rounded-full ring-4 ring-white overflow-hidden">
-                <img src={avatarImg} alt="avatar" />
+                <img src={profile?.image} alt="avatar" />
               </div>
             </div>
             <div className="flex items-start justify-between">
@@ -42,60 +48,62 @@ export function RightDrawer() {
         </Card>
 
         {/* Location */}
-        <Card>
-          <CardHeader>
-            <div className="text-[12px] text-neutral-500">Location</div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-[13px]">{profile?.location}</div>
-          </CardContent>
-        </Card>
+        {profile?.location ? (
+          <Card>
+            <CardHeader>
+              <div className="text-[12px] text-neutral-500">Location</div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-[13px]">{profile?.location}</div>
+            </CardContent>
+          </Card>
+        ) : (
+          <></>
+        )}
 
         {/* Links */}
-        <Card>
-          <CardHeader>
-            <div className="text-[12px] text-neutral-500">Links</div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {profile?.links.map((l, i) => (
-                <Chip key={i}>{l.label}</Chip>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {profile?.links.length ? (
+          <Card>
+            <CardHeader>
+              <div className="text-[12px] text-neutral-500">Links</div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {profile?.links.map((l, i) => (
+                  <Chip key={i}>{l.label}</Chip>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <></>
+        )}
 
-        {/* Common friends (placeholder avatars) */}
-        <Card>
-          <CardHeader>
-            <div className="text-[12px] text-neutral-500">Common Friends</div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3 overflow-x-auto">
-              {Array.from({ length: 5 }).map((_, idx) => (
-                <div key={idx} className="w-14">
-                  <img className="rounded-md" src={avatarImg} alt="friend" />
-                  <div className="text-[10px] mt-1 text-center">Dylan Tull</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bio */}
-        <Card>
-          <CardHeader>
-            <div className="text-[12px] text-neutral-500">Bio</div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-[13px]">{profile?.bio}</div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {profile?.tags.map((t, i) => (
-                <Chip key={i}>{t}</Chip>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {profile?.relationships.length ? (
+          <Card>
+            <CardHeader>
+              <div className="text-[12px] text-neutral-500">Relationships</div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3 overflow-x-auto">
+                {profile?.relationships.map((r) => (
+                  <button
+                    key={r.name}
+                    className="w-14 cursor-pointer"
+                    onClick={() => {
+                      setFocusedNode(GraphState.get().nodes.find((n) => n.name === r.name)!)
+                    }}
+                  >
+                    <img className="rounded-md w-14 h-14 object-contain" src={r.image || placeholder} alt="friend" />
+                    <div className="text-[10px] mt-1 text-center">{r.name}</div>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <></>
+        )}
       </div>
     </div>
   )

@@ -1,7 +1,19 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import SpriteText from 'three-spritetext'
+
+import {
+  Entity,
+  FocusedNodeState,
+  GraphState,
+  Link,
+  Node,
+  Relationship,
+  RuntimeNode,
+  setFocusedNode
+} from '../../state/GraphState'
+import { SelectedProfileState } from '../../state/ProfileState'
 
 const key = import.meta.env.VITE_GOOGLE_SHEETS_API
 const spreadsheetId = '1cs3E9rhzW_wtLg4O7ybIIXkU5gCS_Q0dA5csQ0MVY6g'
@@ -40,47 +52,17 @@ const fetchSheets = async () => {
   }
 }
 
-type Entity = {
-  predicate: string
-  name: string
-  primary_url: string
-  description: string[] | string
-  images: string[] | string
-  urls: string[] | string
-  country_name: string
-  geolocation: string
-}
-
-type Relationship = {
-  subject_url: string
-  object_url: string
-  predicate_url: string
-  meta: string[] | string
-}
-
-type Node = Entity & {
-  id: string
-  type: 'person' | 'project' | 'organization'
-}
-
-type Edge = {
-  source: Node
-  target: Node
-  index: number
-  __controlPoints: null
-  __indexColor: string
-  type: string
-  meta: string[] | string
-}
-
 export const Graph = () => {
   // state
-  const [data, setData] = useSimpleStore<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] })
+  const [data, setData] = useSimpleStore(GraphState)
 
   // refs for container and graph instance
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const fgRef = useRef<ForceGraph3DInstance<Node, Edge> | null>(null)
+  const fgRef = useRef<ForceGraph3DInstance<RuntimeNode, Link> | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
+
+  const [focusedNode] = useSimpleStore(FocusedNodeState)
+  const [profile, setProfile] = useSimpleStore(SelectedProfileState)
 
   // fetch data once
   useEffect(() => {
@@ -95,7 +77,7 @@ export const Graph = () => {
           id: entity.predicate
         }))
 
-        const edges: Edge[] = sheetData.relationships
+        const edges: Link[] = sheetData.relationships
           .filter((e) => nodes.find((n) => n.id === e.subject_url) && nodes.find((n) => n.id === e.object_url)) // filter out incomplete edges
           .map((edge, i) => {
             // ensure source and target are NodeData objects, and add index and __controlPoints if missing to fix bug in force-graph
@@ -113,7 +95,11 @@ export const Graph = () => {
             }
           })
 
-        setData({ nodes, edges })
+        setData((prev) => {
+          prev.nodes = nodes
+          prev.links = edges
+          return prev
+        })
       })
       .catch((err) => {
         // eslint-disable-next-line no-console
@@ -124,19 +110,11 @@ export const Graph = () => {
     }
   }, [setData])
 
-  // memoized graphData in the shape expected by 3d-force-graph
-  const graphData = useMemo(() => {
-    return {
-      nodes: data.nodes,
-      links: data.edges
-    }
-  }, [data])
-
   // initialize the ForceGraph3D instance once
   useEffect(() => {
     if (!containerRef.current) return
     if (!fgRef.current) {
-      const instance = new ForceGraph3D(containerRef.current!) as any as ForceGraph3DInstance<Node, Edge>
+      const instance = new ForceGraph3D(containerRef.current!) as any as ForceGraph3DInstance<RuntimeNode, Link>
       fgRef.current = instance
 
       // basic styling & behavior
@@ -171,7 +149,7 @@ export const Graph = () => {
         label.renderOrder = 999
         return label
       })
-      instance.linkLabel((link: Edge) => {
+      instance.linkLabel((link: Link) => {
         const linkSource = link.source as Node
         const linkTarget = link.target as Node
         switch (link.type) {
@@ -203,19 +181,8 @@ export const Graph = () => {
             return 'black'
         }
       })
-      instance.onNodeClick((n: any) => {
-        // center camera on node
-        const distance = 80
-        const distRatio = 1 + distance / Math.hypot(n?.x || 0, n?.y || 0, n?.z || 0)
-        instance.cameraPosition(
-          {
-            x: (n?.x || 0) * distRatio,
-            y: (n?.y || 0) * distRatio,
-            z: (n?.z || 0) * distRatio
-          },
-          n,
-          800
-        )
+      instance.onNodeClick((n) => {
+        setFocusedNode(n)
       })
     }
 
@@ -240,15 +207,43 @@ export const Graph = () => {
     }
   }, [])
 
+  useEffect(() => {
+    if (!focusedNode || !fgRef.current) return
+
+    const node = focusedNode
+
+    // center camera on node
+    const distance = 120
+    const distRatio = 1 + distance / Math.hypot(node?.x || 0, node?.y || 0, node?.z || 0)
+    fgRef.current.cameraPosition(
+      {
+        x: (node?.x || 0) * distRatio,
+        y: (node?.y || 0) * distRatio,
+        z: (node?.z || 0) * distRatio
+      },
+      {
+        x: node?.x || 0,
+        y: node?.y || 0,
+        z: node?.z || 0
+      },
+      800
+    )
+  }, [focusedNode])
+
+  useEffect(() => {
+    if (!profile?.id || profile.id === focusedNode?.id) return
+    setFocusedNode(data.nodes.find((n) => n.id === profile.id)!)
+  }, [profile?.id])
+
   // update data on instance when it changes
   useEffect(() => {
     if (!fgRef.current) return
-    fgRef.current.graphData(graphData)
+    fgRef.current.graphData(data)
     // try to fit the graph nicely on first load of data
-    if (graphData.nodes?.length) {
+    if (data.nodes?.length) {
       setTimeout(() => fgRef.current?.zoomToFit(400, 40), 0)
     }
-  }, [graphData])
+  }, [data.links, data.nodes])
 
   // cleanup on unmount
   useEffect(() => {
