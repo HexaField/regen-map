@@ -34,19 +34,12 @@ const fetchSheets = async () => {
 
   console.log({ entities, relationships })
   return { entities, relationships } as {
-    entities: Omit<Node, 'id'>[]
-    relationships: {
-      id: string
-      subject_url: string
-      object_url: string
-      predicate_url: string
-      meta: string[] | string
-    }[]
+    entities: Entity[]
+    relationships: Relationship[]
   }
 }
 
-type Node = {
-  id: string
+type Entity = {
   predicate: string
   name: string
   primary_url: string
@@ -57,9 +50,24 @@ type Node = {
   geolocation: string
 }
 
+type Relationship = {
+  subject_url: string
+  object_url: string
+  predicate_url: string
+  meta: string[] | string
+}
+
+type Node = Entity & {
+  id: string
+  type: 'person' | 'project' | 'organization'
+}
+
 type Edge = {
-  source: string
-  target: string
+  source: Node
+  target: Node
+  index: number
+  __controlPoints: null
+  __indexColor: string
   type: string
   meta: string[] | string
 }
@@ -70,7 +78,7 @@ export const Graph = () => {
 
   // refs for container and graph instance
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const fgRef = useRef<ForceGraph3DInstance | null>(null)
+  const fgRef = useRef<ForceGraph3DInstance<Node, Edge> | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
   // fetch data once
@@ -80,15 +88,30 @@ export const Graph = () => {
       .then((sheetData) => {
         if (cancelled) return
         // Align node ids with relationship URLs so links resolve
-        const nodes: Node[] = sheetData.entities.map((entity) => ({ ...entity, id: entity.predicate }))
+        const nodes: Node[] = sheetData.entities.map((entity) => ({
+          ...entity,
+          type: entity.predicate.split(':')[0] as 'person' | 'project' | 'organization',
+          id: entity.predicate
+        }))
+
         const edges: Edge[] = sheetData.relationships
-          .map((rel) => ({
-            source: rel.subject_url,
-            target: rel.object_url,
-            type: rel.predicate_url,
-            meta: rel.meta
-          }))
-          .filter((e) => nodes.find((n) => n.id === e.source) && nodes.find((n) => n.id === e.target)) // filter out incomplete edges
+          .filter((e) => nodes.find((n) => n.id === e.subject_url) && nodes.find((n) => n.id === e.object_url)) // filter out incomplete edges
+          .map((edge, i) => {
+            // ensure source and target are NodeData objects, and add index and __controlPoints if missing to fix bug in force-graph
+            const sourceNode = nodes.find((n) => n.id === edge.subject_url)
+            const targetNode = nodes.find((n) => n.id === edge.object_url)
+
+            return {
+              source: sourceNode!,
+              target: targetNode!,
+              index: i++,
+              __controlPoints: null,
+              __indexColor: '#a8001e',
+              type: edge.predicate_url.split('/').at(-1) || 'relatedTo',
+              meta: edge.meta
+            }
+          })
+
         setData({ nodes, edges })
       })
       .catch((err) => {
@@ -112,7 +135,7 @@ export const Graph = () => {
   useEffect(() => {
     if (!containerRef.current) return
     if (!fgRef.current) {
-      const instance = new ForceGraph3D(containerRef.current!)
+      const instance = new ForceGraph3D(containerRef.current!) as any as ForceGraph3DInstance<Node, Edge>
       fgRef.current = instance
 
       // basic styling & behavior
@@ -120,15 +143,48 @@ export const Graph = () => {
       instance.showNavInfo(false)
       instance.nodeRelSize(6)
       instance.nodeOpacity(0.9)
+      instance.nodeColor((node) => {
+        if (node.type === 'person') return 'blue'
+        if (node.type === 'project') return 'orange'
+        if (node.type === 'organization') return 'green'
+        return 'gray'
+      })
       instance.linkOpacity(0.3)
       instance.linkWidth(1)
       instance.linkColor(() => 'rgba(0,0,0,0.35)')
       instance.cooldownTime(3000)
       instance.nodeLabel('name')
-      instance.linkLabel((l: any) => {
-        const ll = l as Edge
-        const meta = Array.isArray(ll.meta) ? ll.meta.join(', ') : ll.meta
-        return `${ll.type}${meta ? `\n${meta}` : ''}`
+      instance.linkLabel((link: Edge) => {
+        const linkSource = link.source as Node
+        const linkTarget = link.target as Node
+        switch (link.type) {
+          case 'memberOf':
+            return linkSource.name + ' is a member of ' + linkTarget.name
+          case 'knows':
+            return linkSource.name + ' knows ' + linkTarget.name
+          case 'maintainer':
+            return linkSource.name + ' is a maintainer of ' + linkTarget.name
+          case 'softwareRequirement':
+            return linkSource.name + ' has a software requirement of ' + linkTarget.name
+          default:
+            return 'Unknown Link'
+        }
+      })
+      instance.linkColor((link) => {
+        switch (link.type) {
+          case 'memberOf':
+            return 'orange'
+          case 'knows':
+            return 'purple'
+          case 'maintainer':
+            return 'red'
+          case 'softwareRequirement':
+            return 'cyan'
+          case 'tag':
+            return 'orange'
+          default:
+            return 'black'
+        }
       })
       instance.onNodeClick((n: any) => {
         // center camera on node
