@@ -44,7 +44,7 @@ function CommunityDataPanel() {
             key={idx}
             className={[
               'rounded-xl border border-neutral-200 bg-white/80 p-3 hover:shadow-sm transition-shadow',
-              idx === 0 ? 'ring-1 ring-green-400' : ''
+              idx === 1 ? 'ring-1 ring-green-400' : ''
             ].join(' ')}
           >
             <div className="text-[12px] font-medium">{c.title}</div>

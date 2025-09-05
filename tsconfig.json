@@ -19,5 +19,5 @@
     "skipLibCheck": true,
     "jsx": "react"
   },
-  "include": ["src", "globals.d.ts"]
+  "include": ["src", "globals.d.ts", "vite-env.d.ts"]
 }

@@ -15,7 +15,7 @@ export const CommunityCardsState: ReturnType<typeof createSimpleStore<CommunityC
   { title: 'CTA', description: 'Collaborative Tech Alliance' },
   { title: 'GAIA AI', description: "Augmenting Earth's Natural Intelligence" },
   { title: 'NEWCOIN', description: 'A Peer-to-Peer Decentralized AI System' },
-  { title: 'ATLAS', description: '' },
+  { title: 'ATLAS', description: 'Atlas Research Group' },
   { title: 'BIOM', description: 'Bioregional Manufacturing and R&D Hub' },
   { title: 'NAO', description: 'Networked Adaptive Organisms' }
 ])

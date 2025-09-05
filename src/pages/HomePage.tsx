@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
+import { Graph } from '../components/graph/Graph'
 import { AppShell, LeftDock, RightDock } from '../components/layout/AppShell'
 import { LeftPanels } from '../components/layout/LeftPanels'
 import { RightDrawer } from '../components/layout/RightDrawer'
@@ -11,7 +12,9 @@ export function HomePage() {
       <TopControls />
 
       {/* Main content area with big circle placeholder for the globe */}
-      <div className="flex justify-center">{/* @placeholder */}</div>
+      <div className="flex justify-center">
+        <Graph />
+      </div>
 
       <LeftDock>
         <LeftPanels />
