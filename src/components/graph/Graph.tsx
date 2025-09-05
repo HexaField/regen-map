@@ -1,6 +1,7 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
 import React, { useEffect, useMemo, useRef } from 'react'
+import SpriteText from 'three-spritetext'
 
 const key = import.meta.env.VITE_GOOGLE_SHEETS_API
 const spreadsheetId = '1cs3E9rhzW_wtLg4O7ybIIXkU5gCS_Q0dA5csQ0MVY6g'
@@ -153,7 +154,23 @@ export const Graph = () => {
       instance.linkWidth(1)
       instance.linkColor(() => 'rgba(0,0,0,0.35)')
       instance.cooldownTime(3000)
+      // Keep default tooltip label if desired
       instance.nodeLabel('name')
+      instance.nodeThreeObjectExtend(true)
+      instance.nodeThreeObject((node: any) => {
+        const label: any = new SpriteText(node.name || '')
+        label.textHeight = 3
+        label.color = '#111'
+        label.backgroundColor = 'rgba(255,255,255,0.85)'
+        label.padding = 2
+        if (label.material) {
+          label.material.depthWrite = false
+          label.material.depthTest = false
+        }
+        // @ts-ignore - renderOrder exists at runtime on Object3D
+        label.renderOrder = 999
+        return label
+      })
       instance.linkLabel((link: Edge) => {
         const linkSource = link.source as Node
         const linkTarget = link.target as Node
