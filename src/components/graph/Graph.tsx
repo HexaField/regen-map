@@ -1,3 +1,4 @@
+import { useSimpleStore } from '@hexafield/simple-store/react'
 import React, { useEffect } from 'react'
 
 const key = import.meta.env.VITE_GOOGLE_SHEETS_API
@@ -31,12 +32,54 @@ const fetchSheets = async () => {
   ])
 
   console.log({ entities, relationships })
+  return { entities, relationships } as {
+    entities: Omit<Node, 'id'>[]
+    relationships: {
+      id: string
+      subject_url: string
+      object_url: string
+      predicate_url: string
+      meta: string[] | string
+    }[]
+  }
+}
+
+type Node = {
+  id: string
+  predicate: string
+  name: string
+  primary_url: string
+  description: string[] | string
+  images: string[] | string
+  urls: string[] | string
+  country_name: string
+  geolocation: string
+}
+
+type Edge = {
+  source: string
+  target: string
+  type: string
+  meta: string[] | string
 }
 
 export const Graph = () => {
+  const [data, setData] = useSimpleStore<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] })
   useEffect(() => {
-    fetchSheets()
+    fetchSheets().then((data) => {
+      setData({
+        nodes: data.entities.map((entity) => ({ ...entity, id: entity.predicate })),
+        edges: data.relationships.map((rel) => ({
+          source: rel.subject_url,
+          target: rel.object_url,
+          type: rel.predicate_url,
+          meta: rel.meta
+        }))
+      })
+    })
   }, [])
+
+  console.log(data)
 
   return <div>Graph component</div>
 }
