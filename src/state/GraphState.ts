@@ -36,6 +36,11 @@ export type Link = {
   __indexColor: string
   type: string
   meta: string[] | string
+  // optional visual layout props (computed at runtime)
+  curvature?: number
+  curveRotation?: number
+  multiIndex?: number
+  multiCount?: number
 }
 
 // Right drawer (Node Information/Profile)

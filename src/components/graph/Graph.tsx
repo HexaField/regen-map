@@ -77,6 +77,7 @@ export const Graph = () => {
           id: entity.predicate
         }))
 
+        // Build initial edges array
         const edges: Link[] = sheetData.relationships
           .filter((e) => nodes.find((n) => n.id === e.subject_url) && nodes.find((n) => n.id === e.object_url)) // filter out incomplete edges
           .map((edge, i) => {
@@ -94,6 +95,41 @@ export const Graph = () => {
               meta: edge.meta
             }
           })
+
+        // Compute multi-link curvature so parallel links bow outwards and don't overlap
+        // Group links by unordered pair of node ids
+        const groups = new Map<string, Link[]>()
+        for (const l of edges) {
+          const a = (l.source as Node).id
+          const b = (l.target as Node).id
+          const key = a < b ? `${a}__${b}` : `${b}__${a}`
+          if (!groups.has(key)) groups.set(key, [])
+          groups.get(key)!.push(l)
+        }
+        const BOW_STEP = 0.2 // curvature step between parallel links
+        for (const [key, links] of groups.entries()) {
+          if (links.length === 1) {
+            // straight line
+            links[0].curvature = 0
+            links[0].curveRotation = 0
+            links[0].multiIndex = 0
+            links[0].multiCount = 1
+            continue
+          }
+          // sort for stable assignment (optionally by type then index)
+          links.sort((l1, l2) => (l1.type || '').localeCompare(l2.type || '') || l1.index - l2.index)
+          const count = links.length
+          // Distribute indices around zero: e.g., 4 -> [-1.5,-0.5,0.5,1.5], 3 -> [-1,0,1]
+          const offsets = links.map((_, i) => i - (count - 1) / 2)
+          links.forEach((l, i) => {
+            l.multiIndex = i
+            l.multiCount = count
+            l.curvature = offsets[i] * BOW_STEP
+            // rotate each curved link around its axis so they spread in a ring for 3D. Use golden angle for variety.
+            const golden = Math.PI * (3 - Math.sqrt(5))
+            l.curveRotation = (i * golden) % (Math.PI * 2)
+          })
+        }
 
         setData((prev) => {
           prev.nodes = nodes
@@ -131,11 +167,32 @@ export const Graph = () => {
       instance.linkOpacity(0.3)
       instance.linkWidth(1)
       instance.linkColor(() => 'rgba(0,0,0,0.35)')
+      // Direction cones to indicate source -> target
+      instance.linkDirectionalArrowLength(6)
+      instance.linkDirectionalArrowRelPos(0.6)
+      instance.linkDirectionalArrowResolution(8)
+      instance.linkDirectionalArrowColor((link) => {
+        // match linkColor
+        switch (link.type) {
+          case 'memberOf':
+            return 'orange'
+          case 'knows':
+            return 'purple'
+          case 'maintainer':
+            return 'red'
+          case 'softwareRequirement':
+            return 'cyan'
+          case 'tag':
+            return 'orange'
+          default:
+            return 'black'
+        }
+      })
       instance.cooldownTime(3000)
       // Keep default tooltip label if desired
       instance.nodeLabel('name')
       instance.nodeThreeObjectExtend(true)
-      instance.nodeThreeObject((node: any) => {
+      instance.nodeThreeObject((node: Node) => {
         const label: any = new SpriteText(node.name || '')
         label.textHeight = 3
         label.color = '#111'
@@ -181,6 +238,9 @@ export const Graph = () => {
             return 'black'
         }
       })
+      // Apply curvature and rotation for multi-links
+      instance.linkCurvature((l) => l.curvature ?? 0)
+      instance.linkCurveRotation((l) => l.curveRotation ?? 0)
       instance.onNodeClick((n) => {
         setFocusedNode(n)
       })
