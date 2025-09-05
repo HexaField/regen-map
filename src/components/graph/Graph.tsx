@@ -40,15 +40,19 @@ const fetchSheet = async (range: string) => {
 }
 
 const fetchSheets = async () => {
-  const [entities, relationships] = await Promise.all([
+  const [entities, relationships, ecosystemEntities, ecosystemRelationships] = await Promise.all([
     fetchSheet(encodeURIComponent('Entities')),
-    fetchSheet(encodeURIComponent('Relationships'))
+    fetchSheet(encodeURIComponent('Relationships')),
+    fetchSheet(encodeURIComponent('EcosystemEntities')),
+    fetchSheet(encodeURIComponent('EcosystemRelationships'))
   ])
 
-  console.log({ entities, relationships })
-  return { entities, relationships } as {
+  console.log({ entities, relationships, ecosystemEntities, ecosystemRelationships })
+  return { entities, relationships, ecosystemEntities, ecosystemRelationships } as {
     entities: Entity[]
     relationships: Relationship[]
+    ecosystemEntities: Entity[]
+    ecosystemRelationships: Relationship[]
   }
 }
 
@@ -70,15 +74,19 @@ export const Graph = () => {
     fetchSheets()
       .then((sheetData) => {
         if (cancelled) return
+        const entities = [sheetData.entities, sheetData.ecosystemEntities].flat().filter((e) => !!e.predicate)
         // Align node ids with relationship URLs so links resolve
-        const nodes: Node[] = sheetData.entities.map((entity) => ({
+        const nodes: Node[] = entities.map((entity) => ({
           ...entity,
           type: entity.predicate.split(':')[0] as 'person' | 'project' | 'organization',
           id: entity.predicate
         }))
+        const relationships = [sheetData.relationships, sheetData.ecosystemRelationships]
+          .flat()
+          .filter((e) => !!e.predicate_url)
 
         // Build initial edges array
-        const edges: Link[] = sheetData.relationships
+        const edges: Link[] = relationships
           .filter((e) => nodes.find((n) => n.id === e.subject_url) && nodes.find((n) => n.id === e.object_url)) // filter out incomplete edges
           .map((edge, i) => {
             // ensure source and target are NodeData objects, and add index and __controlPoints if missing to fix bug in force-graph
@@ -165,13 +173,22 @@ export const Graph = () => {
         return 'gray'
       })
       instance.linkOpacity(0.3)
-      instance.linkWidth(1)
-      instance.linkColor(() => 'rgba(0,0,0,0.35)')
+      // helper to detect proposed links via meta field
+      const isProposed = (link: Link) => {
+        const m = link.meta
+        if (!m) return false
+        if (Array.isArray(m)) return m.some((s) => (s || '').toLowerCase().includes('proposed'))
+        return (m || '').toLowerCase().includes('proposed')
+      }
+      // width and base color adapt to meta:proposed
+      instance.linkWidth((link) => (isProposed(link as Link) ? 0.6 : 1))
+      instance.linkColor((link) => (isProposed(link as Link) ? '#9ca3af' : 'rgba(0,0,0,0.35)'))
       // Direction cones to indicate source -> target
-      instance.linkDirectionalArrowLength(6)
+      instance.linkDirectionalArrowLength((link) => (isProposed(link as Link) ? 3 : 6))
       instance.linkDirectionalArrowRelPos(0.6)
       instance.linkDirectionalArrowResolution(8)
       instance.linkDirectionalArrowColor((link) => {
+        if (isProposed(link as Link)) return '#9ca3af'
         // match linkColor
         switch (link.type) {
           case 'memberOf':
@@ -223,6 +240,7 @@ export const Graph = () => {
         }
       })
       instance.linkColor((link) => {
+        if (isProposed(link as Link)) return '#9ca3af'
         switch (link.type) {
           case 'memberOf':
             return 'orange'
