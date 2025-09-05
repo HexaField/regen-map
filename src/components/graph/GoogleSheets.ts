@@ -1,4 +1,4 @@
-import { Entity, Link, Node, Relationship } from '../../state/GraphState'
+import { Entity, Link, LinkRuntime, Node, Relationship } from '../../state/GraphState'
 
 const key = import.meta.env.VITE_GOOGLE_SHEETS_API
 const spreadsheetId = '1cs3E9rhzW_wtLg4O7ybIIXkU5gCS_Q0dA5csQ0MVY6g'
@@ -32,8 +32,6 @@ export const fetchSheets = async () => {
     fetchSheet(encodeURIComponent('EcosystemRelationships'))
   ])) as [Entity[], Relationship[], Entity[], Relationship[]]
 
-  console.log({ entities, relationships, ecosystemEntities, ecosystemRelationships })
-
   const filteredEntities = [entities, ecosystemEntities].flat().filter((e) => !!e.predicate)
   // Align node ids with relationship URLs so links resolve
   const nodes: Node[] = filteredEntities.map((entity) => ({
@@ -44,7 +42,7 @@ export const fetchSheets = async () => {
   const filteredRelationships = [relationships, ecosystemRelationships].flat().filter((e) => !!e.predicate_url)
 
   // Build initial edges array
-  const edges: Link[] = filteredRelationships
+  const edges: LinkRuntime[] = filteredRelationships
     .filter((e) => nodes.find((n) => n.id === e.subject_url) && nodes.find((n) => n.id === e.object_url)) // filter out incomplete edges
     .map((edge, i) => {
       // ensure source and target are NodeData objects, and add index and __controlPoints if missing to fix bug in force-graph
@@ -64,10 +62,10 @@ export const fetchSheets = async () => {
 
   // Compute multi-link curvature so parallel links bow outwards and don't overlap
   // Group links by unordered pair of node ids
-  const groups = new Map<string, Link[]>()
+  const groups = new Map<string, LinkRuntime[]>()
   for (const l of edges) {
-    const a = (l.source as Node).id
-    const b = (l.target as Node).id
+    const a = l.source.id
+    const b = l.target.id
     const key = a < b ? `${a}__${b}` : `${b}__${a}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(l)

@@ -35,19 +35,33 @@ function PanelChrome({ title, children }: { title: string; children: React.React
 }
 
 function CommunityDataPanel() {
-  const [cards] = useSimpleStore(CommunityCardsState)
+  const [cards, setCards] = useSimpleStore(CommunityCardsState)
+  const toggle = (id: string) => {
+    setCards(cards.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)))
+  }
   return (
     <PanelChrome title="Custom Community Data">
       <div className="grid grid-cols-2 gap-3">
         {cards.map((c, idx) => (
           <div
-            key={idx}
+            key={c.id}
             className={[
               'rounded-xl border border-neutral-200 bg-white/80 p-3 hover:shadow-sm transition-shadow',
-              idx === 1 ? 'ring-1 ring-green-400' : ''
+              c.enabled ? 'ring-1 ring-green-400' : ''
             ].join(' ')}
           >
-            <div className="text-[12px] font-medium">{c.title}</div>
+            <div className="flex items-center justify-between">
+              <div className="text-[12px] font-medium">{c.title}</div>
+              <button
+                className={[
+                  'text-[11px] px-2 py-0.5 rounded-lg border transition-colors',
+                  c.enabled ? 'bg-green-100 border-green-300 text-green-700' : 'bg-white border-neutral-300 text-neutral-500'
+                ].join(' ')}
+                onClick={() => toggle(c.id)}
+              >
+                {c.enabled ? 'On' : 'Off'}
+              </button>
+            </div>
             {c.subtitle ? <div className="text-[11px] text-neutral-500">{c.subtitle}</div> : null}
             {c.description ? <div className="text-[11px] text-neutral-500">{c.description}</div> : null}
           </div>

@@ -11,7 +11,7 @@ export type Entity = {
   images: string[] | string
   urls: string[] | string
   country_name: string
-  geolocation: string
+  geolocation?: string
 }
 
 export type Relationship = {
@@ -26,16 +26,21 @@ export type Node = Entity & {
   type: 'person' | 'project' | 'organization'
 }
 
-export type RuntimeNode = Node & NodeObject
+export type NodeRuntime = Node & NodeObject
 
 export type Link = {
-  source: Node
-  target: Node
+  source: string
+  target: string
+  type: string
+  meta: string[] | string
+}
+
+export type LinkRuntime = Omit<Link, 'source' | 'target'> & {
+  source: NodeRuntime
+  target: NodeRuntime
   index: number
   __controlPoints: null
   __indexColor: string
-  type: string
-  meta: string[] | string
   // optional visual layout props (computed at runtime)
   curvature?: number
   curveRotation?: number
@@ -45,18 +50,23 @@ export type Link = {
 
 export type GraphDataType = {
   nodes: Node[]
-  links: Link[]
+  links: (Link | LinkRuntime)[]
+}
+
+export type GraphDataRuntimeType = {
+  nodes: NodeRuntime[]
+  links: LinkRuntime[]
 }
 
 // Right drawer (Node Information/Profile)
-export const GraphState = createSimpleStore<GraphDataType>({
+export const GraphState = createSimpleStore<GraphDataRuntimeType>({
   nodes: [],
   links: []
 })
 
-export const FocusedNodeState = createSimpleStore<RuntimeNode | null>(null)
+export const FocusedNodeState = createSimpleStore<NodeRuntime | null>(null)
 
-export const setFocusedNode = (focusedNode: RuntimeNode) => {
+export const setFocusedNode = (focusedNode: NodeRuntime) => {
   const data = GraphState.get()
   const links = Array.from(
     new Map(
@@ -74,7 +84,7 @@ export const setFocusedNode = (focusedNode: RuntimeNode) => {
     name: focusedNode.name,
     title: Array.isArray(focusedNode.description) ? focusedNode.description.join(',') : focusedNode.description,
     image: Array.isArray(focusedNode.images) ? focusedNode.images[0] : focusedNode.images,
-    location: focusedNode.geolocation,
+    location: focusedNode.country_name,
     links: focusedNode.urls
       ? (Array.isArray(focusedNode.urls) ? focusedNode.urls : [focusedNode.urls]).map((url) => ({
           label: url,

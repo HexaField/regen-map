@@ -32,7 +32,7 @@ export function TopControls() {
             const clicked = id as AppTab
             if (clicked === tab) {
               // Clicking same tab toggles left dock; also close right panel for a clean view
-              // toggleLeftDock()
+              toggleLeftDock()
               closeNodePanel()
               return
             }
