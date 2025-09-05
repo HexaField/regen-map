@@ -1,10 +1,12 @@
 import React from 'react'
+import { useSimpleStore } from '@hexafield/simple-store/react'
+import { LeftDockOpenState } from '../../state/LeftDockState'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900" id="app-shell">
       {/* Top nav */}
-      <div className="fixed bg-white inset-x-0 top-0 z-40 h-14 flex items-center justify-between px-6">
+      {/* <div className="bg-white inset-x-0 top-0 z-40 h-14 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-green-700 rounded-full" />
         </div>
@@ -19,8 +21,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Community
           </a>
         </div>
-      </div>
-      <div className="pt-14">{children}</div>
+      </div> */}
+      <div className="">{children}</div>
     </div>
   )
 }
@@ -34,8 +36,15 @@ export function TopCenter({ children }: { children: React.ReactNode }) {
 }
 
 export function LeftDock({ children }: { children: React.ReactNode }) {
+  const [open] = useSimpleStore(LeftDockOpenState)
   return (
-    <div className="fixed left-6 w-[320px] z-20" id="left-dock">
+    <div
+      className={[
+        'fixed left-6 w-[320px] z-20 pointer-events-auto transition-all',
+        open ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+      ].join(' ')}
+      id="left-dock"
+    >
       {children}
     </div>
   )
