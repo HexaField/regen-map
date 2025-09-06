@@ -1,6 +1,6 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import ForceGraph3D, { LinkObject, type ForceGraph3DInstance } from '3d-force-graph'
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import SpriteText from 'three-spritetext'
 
 import { CommunityCardsState } from '../../state/CommunityCardsState'
@@ -19,6 +19,7 @@ import {
 } from '../../state/GraphState'
 import { SelectedProfileState } from '../../state/ProfileState'
 import { dataSourceFetchers } from './dataSources'
+import { GraphFilterState, ensureNodeTypes } from '../../state/GraphFilterState'
 
 const getLinkKey = (link: Link | LinkRuntime) =>
   `${typeof link.source === 'string' ? link.source : link.source.id}-${link.type}-${typeof link.target === 'string' ? link.target : link.target.id}`
@@ -134,6 +135,7 @@ export const Graph = () => {
 
   const [focusedNode] = useSimpleStore(FocusedNodeState)
   const [profile, setProfile] = useSimpleStore(SelectedProfileState)
+  const [filters] = useSimpleStore(GraphFilterState)
 
   // watch enabled community datasets and merge their graphs together
   const [cards] = useSimpleStore(CommunityCardsState)
@@ -377,13 +379,39 @@ export const Graph = () => {
   // update data on instance when it changes
   useEffect(() => {
     if (!fgRef.current) return
-    fgRef.current.graphData(data)
+    // Apply visibility filters via filtering graph data before passing to ForceGraph
+    const visibleTypes = filters.visibleNodeTypes
+    const isTypeVisible = (t?: string) => (t ? visibleTypes[t] !== false : true)
+    const showProposed = filters.showProposedEdges !== false
+
+    const filteredNodes = data.nodes.filter((n) => isTypeVisible(n.type))
+    const nodeIdSet = new Set(filteredNodes.map((n) => n.id))
+    const isProposed = (meta: any) => {
+      if (!meta) return false
+      if (Array.isArray(meta)) return meta.some((s) => (s || '').toLowerCase().includes('proposed'))
+      return (meta || '').toLowerCase().includes('proposed')
+    }
+    const filteredLinks = data.links.filter((l) => {
+      const s = typeof l.source === 'string' ? l.source : l.source.id
+      const t = typeof l.target === 'string' ? l.target : l.target.id
+      if (!nodeIdSet.has(s) || !nodeIdSet.has(t)) return false
+      if (!showProposed && isProposed(l.meta)) return false
+      return true
+    })
+
+    fgRef.current.graphData({ nodes: filteredNodes as any, links: filteredLinks as any })
     // try to fit the graph nicely on first load of data
     if (data.nodes?.length) {
       setTimeout(focus, 0)
       setTimeout(focus, 500)
     }
-  }, [data])
+  }, [data, filters.visibleNodeTypes, filters.showProposedEdges])
+
+  // Track node types in a separate effect to seed filter defaults
+  useEffect(() => {
+    const types = Array.from(new Set((data.nodes || []).map((n) => n.type))).filter(Boolean) as string[]
+    if (types.length) ensureNodeTypes(types)
+  }, [data.nodes.map((n) => n.type).join('|')])
 
   // cleanup on unmount
   useEffect(() => {

@@ -7,6 +7,7 @@ import { closeNodePanel, toggleNodePanel } from '../../state/NodePanelState'
 import { SearchQueryState } from '../../state/SearchState'
 import { ViewMode, ViewModeState } from '../../state/ViewModeState'
 import { Button } from '../ui/Button'
+import { toggleGraphConfigModal } from '../../state/GraphConfigModalState'
 import { Input } from '../ui/Input'
 import { Segmented } from '../ui/Segmented'
 import { Tabs } from '../ui/Tabs'
@@ -23,7 +24,7 @@ export function TopControls() {
       <div className="z-30 left-6 flex items-center gap-3">
         <Tabs
           tabs={[
-            { id: 'Community Data', label: 'Community Data' },
+            { id: 'Community Data', label: 'Community Data' }
             // { id: 'Visualize My Network', label: 'Visualize My Network' },
             // { id: 'Upload File', label: 'Upload File' }
           ]}
@@ -49,7 +50,7 @@ export function TopControls() {
           items={[
             // { id: 'Globe', label: 'Globe' },
             // { id: 'Map', label: 'Map' },
-            { id: 'Graph', label: 'Graph' },
+            { id: 'Graph', label: 'Graph' }
             // { id: 'CRM', label: 'CRM' }
           ]}
           value={mode as string}
@@ -61,6 +62,9 @@ export function TopControls() {
       {/* Right search and node info button */}
       <div className="z-30 right-6 flex items-center gap-3">
         {/* <Input placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="w-[260px]" /> */}
+        <Button variant="ghost" className="rounded-full" onClick={toggleGraphConfigModal}>
+          Graph Settings
+        </Button>
         <Button variant="ghost" className="rounded-full" onClick={toggleNodePanel}>
           Node Information
         </Button>
