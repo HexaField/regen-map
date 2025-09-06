@@ -15,7 +15,7 @@ export function HomePage() {
     <AppShell>
       <TopControls />
 
-      <div className="absolute flex justify-center">{mode === 'Graph' && <Graph />}</div>
+      {mode === 'Graph' && <Graph />}
 
       <LeftDock>
         <LeftPanels />

@@ -359,7 +359,7 @@ export const Graph = () => {
       })
 
       // Prevent dragging org nodes when spheres are enabled
-      const preventOrgDrag = (n: any) => {
+      const preventOrgDrag = (n: NodeRuntime) => {
         const on = GraphFilterState.get().organizationSpheres
         if (on && n?.type === 'organization') {
           n.fx = undefined
@@ -367,8 +367,8 @@ export const Graph = () => {
           n.fz = undefined
         }
       }
-      ;(instance as any).onNodeDrag?.((n: any) => preventOrgDrag(n))
-      ;(instance as any).onNodeDragEnd?.((n: any) => preventOrgDrag(n))
+      instance.onNodeDrag(preventOrgDrag)
+      instance.onNodeDragEnd(preventOrgDrag)
 
       const updateOrgSpheres = () => {
         if (!fgRef.current) return
@@ -603,26 +603,24 @@ export const Graph = () => {
   }, [])
 
   return (
-    <div className="w-full flex-1 px-6 pb-6">
-      <div className="w-full rounded-xl shadow-sm border border-neutral-200 bg-white overflow-hidden">
-        <div className="flex items-center justify-center gap-3 px-4 py-2 border-b border-neutral-200 bg-neutral-50">
-          <label htmlFor="label-size" className="text-sm text-neutral-700 whitespace-nowrap">
-            Label size
-          </label>
-          <input
-            id="label-size"
-            type="range"
-            min={1}
-            max={15}
-            step={0.5}
-            value={labelSize}
-            onChange={(e) => setLabelSize(parseFloat(e.target.value))}
-            className="h-2 accent-neutral-700"
-            style={{ width: '15%' }}
-          />
-        </div>
-        <div ref={containerRef} className="w-full" style={{ height: 'calc(100vh - 220px)', minHeight: 320 }} />
+    <div className="w-full flex-1">
+      <div className="flex items-center justify-center gap-3 px-4 py-2 border-b border-neutral-200 bg-neutral-50">
+        <label htmlFor="label-size" className="text-sm text-neutral-700 whitespace-nowrap">
+          Label size
+        </label>
+        <input
+          id="label-size"
+          type="range"
+          min={1}
+          max={15}
+          step={0.5}
+          value={labelSize}
+          onChange={(e) => setLabelSize(parseFloat(e.target.value))}
+          className="h-2 accent-neutral-700"
+          style={{ width: '15%' }}
+        />
       </div>
+      <div ref={containerRef} className="w-full h-full" />
     </div>
   )
 }
