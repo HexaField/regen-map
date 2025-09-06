@@ -4,12 +4,14 @@ export type GraphFilter = {
   visibleNodeTypes: Record<string, boolean>
   showProposedEdges: boolean
   organizationSpheres: boolean
+  labelSize: number
 }
 
 export const GraphFilterState = createSimpleStore<GraphFilter>({
   visibleNodeTypes: {},
   showProposedEdges: true,
-  organizationSpheres: true
+  organizationSpheres: true,
+  labelSize: 3
 })
 
 // Ensure that any new types default to visible
@@ -18,7 +20,8 @@ export const ensureNodeTypes = (types: string[]) => {
     const next: GraphFilter = {
       visibleNodeTypes: { ...prev.visibleNodeTypes },
       showProposedEdges: prev.showProposedEdges,
-      organizationSpheres: prev.organizationSpheres
+      organizationSpheres: prev.organizationSpheres,
+      labelSize: prev.labelSize
     }
     for (const t of types) {
       if (!(t in next.visibleNodeTypes)) next.visibleNodeTypes[t] = true
@@ -44,3 +47,5 @@ export const setShowProposedEdges = (show: boolean) =>
 
 export const setOrganizationSpheres = (on: boolean) =>
   GraphFilterState.set((prev) => ({ ...prev, organizationSpheres: on }))
+
+export const setLabelSize = (size: number) => GraphFilterState.set((prev) => ({ ...prev, labelSize: size }))

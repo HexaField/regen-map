@@ -5,6 +5,7 @@ import { closeGraphConfigModal, GraphConfigModalOpenState } from '../../state/Gr
 import {
   ensureNodeTypes,
   GraphFilterState,
+  setLabelSize,
   setNodeTypeVisibility,
   setOrganizationSpheres,
   setShowProposedEdges
@@ -35,6 +36,25 @@ export function GraphConfigModal() {
       onClose={closeGraphConfigModal}
     >
       <div className="text-[13px] text-neutral-700 space-y-4">
+        <div>
+          <div className="text-[12px] font-medium text-neutral-500 mb-2">Labels</div>
+          <label className="flex items-center gap-3">
+            <span className="text-[13px] whitespace-nowrap">Label size</span>
+            <input
+              type="range"
+              min={1}
+              max={15}
+              step={0.5}
+              value={filters.labelSize}
+              onChange={(e) => setLabelSize(parseFloat(e.target.value))}
+              className="h-2 accent-neutral-700 flex-1"
+            />
+            <span className="w-8 text-right tabular-nums text-[12px] text-neutral-500">
+              {filters.labelSize.toFixed(1)}
+            </span>
+          </label>
+        </div>
+
         <div>
           <div className="text-[12px] font-medium text-neutral-500 mb-2">Nodes</div>
           <div className="flex flex-col gap-2">

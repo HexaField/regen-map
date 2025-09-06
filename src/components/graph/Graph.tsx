@@ -1,6 +1,6 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { Group, Mesh, MeshBasicMaterial, SphereGeometry } from 'three'
 import SpriteText from 'three-spritetext'
 
@@ -126,18 +126,18 @@ const mergeNodes = (prevData: GraphDataRuntimeType, rawData: GraphDataType) => {
 export const Graph = () => {
   // state
   const [data, setData] = useSimpleStore(GraphState)
-  // node label size (world units) slider
-  const [labelSize, setLabelSize] = useState<number>(3)
-  const labelSizeRef = useRef(labelSize)
+  // node label size (world units) from filters state
+  const [filters] = useSimpleStore(GraphFilterState)
+  const labelSizeRef = useRef(filters.labelSize)
   useEffect(() => {
-    labelSizeRef.current = labelSize
+    labelSizeRef.current = filters.labelSize
     // update all existing labels when size changes
     for (const [, label] of labelMap.current.entries()) {
       try {
-        label.textHeight = labelSize
+        label.textHeight = filters.labelSize
       } catch {}
     }
-  }, [labelSize])
+  }, [filters.labelSize])
 
   // refs for container and graph instance
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -148,7 +148,7 @@ export const Graph = () => {
 
   const [focusedNode] = useSimpleStore(FocusedNodeState)
   const [profile, setProfile] = useSimpleStore(SelectedProfileState)
-  const [filters] = useSimpleStore(GraphFilterState)
+  // filters already declared above
 
   // watch enabled community datasets and merge their graphs together
   const [cards] = useSimpleStore(CommunityCardsState)
@@ -604,22 +604,6 @@ export const Graph = () => {
 
   return (
     <div className="w-full flex-1">
-      <div className="flex items-center justify-center gap-3 px-4 py-2 border-b border-neutral-200 bg-neutral-50">
-        <label htmlFor="label-size" className="text-sm text-neutral-700 whitespace-nowrap">
-          Label size
-        </label>
-        <input
-          id="label-size"
-          type="range"
-          min={1}
-          max={15}
-          step={0.5}
-          value={labelSize}
-          onChange={(e) => setLabelSize(parseFloat(e.target.value))}
-          className="h-2 accent-neutral-700"
-          style={{ width: '15%' }}
-        />
-      </div>
       <div ref={containerRef} className="w-full h-full" />
     </div>
   )
