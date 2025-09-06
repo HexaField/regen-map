@@ -1,7 +1,7 @@
 import { createSimpleStore } from '@hexafield/simple-store/react'
 
 // Right drawer (Node Information/Profile)
-export const NodePanelOpenState = createSimpleStore<boolean>(true)
+export const NodePanelOpenState = createSimpleStore<boolean>(false)
 
 export const openNodePanel = () => NodePanelOpenState.set(true)
 export const closeNodePanel = () => NodePanelOpenState.set(false)

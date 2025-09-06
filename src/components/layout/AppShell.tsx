@@ -1,16 +1,19 @@
-import React from 'react'
 import { useSimpleStore } from '@hexafield/simple-store/react'
-import { LeftDockOpenState } from '../../state/LeftDockState'
+import React from 'react'
+
+import { closeLeftDock, LeftDockOpenState } from '../../state/LeftDockState'
+import { closeNodePanel, NodePanelOpenState } from '../../state/NodePanelState'
+import { DraggableResizableModal } from '../ui/DraggableResizableModal'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900" id="app-shell">
       {/* Top nav */}
-      <div className="bg-white inset-x-0 top-0 z-40 h-14 flex items-center justify-between px-6">
+      {/* <div className="bg-white inset-x-0 top-0 z-40 h-14 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-green-700 rounded-full" />
         </div>
-        {/* <div className="text-[13px] text-neutral-500 flex gap-6">
+        <div className="text-[13px] text-neutral-500 flex gap-6">
           <a className="hover:text-neutral-700" href="#">
             About
           </a>
@@ -20,8 +23,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <a className="hover:text-neutral-700" href="#">
             Community
           </a>
-        </div> */}
-      </div>
+        </div>
+      </div> */}
       <div className="">{children}</div>
     </div>
   )
@@ -37,23 +40,42 @@ export function TopCenter({ children }: { children: React.ReactNode }) {
 
 export function LeftDock({ children }: { children: React.ReactNode }) {
   const [open] = useSimpleStore(LeftDockOpenState)
+  if (!open) return null
   return (
-    <div
-      className={[
-        'fixed left-6 w-[320px] z-20 pointer-events-auto transition-all',
-        open ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
-      ].join(' ')}
-      id="left-dock"
+    <DraggableResizableModal
+      title="Panels"
+      initialWidth={360}
+      initialHeight={520}
+      initialX={24}
+      initialY={112}
+      minWidth={280}
+      minHeight={240}
+      onClose={closeLeftDock}
     >
       {children}
-    </div>
+    </DraggableResizableModal>
   )
 }
 
 export function RightDock({ children }: { children: React.ReactNode }) {
+  const [open] = useSimpleStore(NodePanelOpenState)
+  if (!open) return null
+  // Compute a sensible initial X so the panel starts near the right edge
+  const initialWidth = 360
+  const margin = 24
+  const initialX = typeof window !== 'undefined' ? Math.max(margin, window.innerWidth - initialWidth - margin) : 960
   return (
-    <div className="fixed right-6 z-20" id="right-dock">
+    <DraggableResizableModal
+      title="Node Information"
+      initialWidth={initialWidth}
+      initialHeight={600}
+      initialX={initialX}
+      initialY={112}
+      minWidth={320}
+      minHeight={260}
+      onClose={closeNodePanel}
+    >
       {children}
-    </div>
+    </DraggableResizableModal>
   )
 }

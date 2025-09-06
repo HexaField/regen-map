@@ -22,7 +22,7 @@ export function LeftPanels() {
 
 function PanelChrome({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Card className="w-[320px]">
+  <Card className="w-full min-w-[280px]">
       <CardHeader>
         <h3 className="text-[14px] font-medium">{title}</h3>
         <p className="text-[12px] text-neutral-500">
