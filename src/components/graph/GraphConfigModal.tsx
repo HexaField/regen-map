@@ -6,6 +6,7 @@ import {
   ensureNodeTypes,
   GraphFilterState,
   setNodeTypeVisibility,
+  setOrganizationSpheres,
   setShowProposedEdges
 } from '../../state/GraphFilterState'
 import { GraphState } from '../../state/GraphState'
@@ -66,6 +67,23 @@ export function GraphConfigModal() {
             />
             <span>Show proposed edges</span>
           </label>
+        </div>
+
+        <div className="pt-2 border-t border-neutral-200">
+          <div className="text-[12px] font-medium text-neutral-500 mb-2">Organizations</div>
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={filters.organizationSpheres}
+              onChange={(e) => setOrganizationSpheres(e.target.checked)}
+            />
+            <span>Render organizations as enclosing spheres</span>
+          </label>
+          <div className="text-[12px] text-neutral-500 mt-1">
+            When enabled, organization nodes become transparent and a clickable enclosing sphere is drawn around their
+            members; member-of forces are slightly stronger.
+          </div>
         </div>
       </div>
     </DraggableResizableModal>

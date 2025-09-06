@@ -1,11 +1,12 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
-import ForceGraph3D, { LinkObject, type ForceGraph3DInstance } from '3d-force-graph'
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
+import React, { useCallback, useEffect, useRef } from 'react'
+import { Group, Mesh, MeshBasicMaterial, SphereGeometry } from 'three'
 import SpriteText from 'three-spritetext'
 
 import { CommunityCardsState } from '../../state/CommunityCardsState'
+import { ensureNodeTypes, GraphFilterState } from '../../state/GraphFilterState'
 import {
-  Entity,
   FocusedNodeState,
   GraphDataRuntimeType,
   GraphDataType,
@@ -14,12 +15,10 @@ import {
   LinkRuntime,
   Node,
   NodeRuntime,
-  Relationship,
   setFocusedNode
 } from '../../state/GraphState'
 import { SelectedProfileState } from '../../state/ProfileState'
 import { dataSourceFetchers } from './dataSources'
-import { GraphFilterState, ensureNodeTypes } from '../../state/GraphFilterState'
 
 const getLinkKey = (link: Link | LinkRuntime) =>
   `${typeof link.source === 'string' ? link.source : link.source.id}-${link.type}-${typeof link.target === 'string' ? link.target : link.target.id}`
@@ -132,6 +131,8 @@ export const Graph = () => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const fgRef = useRef<ForceGraph3DInstance<NodeRuntime, LinkRuntime> | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  const orgSphereMap = useRef<Map<string, Mesh>>(new Map())
+  const labelMap = useRef<Map<string, any>>(new Map())
 
   const [focusedNode] = useSimpleStore(FocusedNodeState)
   const [profile, setProfile] = useSimpleStore(SelectedProfileState)
@@ -229,10 +230,20 @@ export const Graph = () => {
       instance.linkWidth((link) => (isProposed(link) ? 0.6 : 1))
       instance.linkColor((link) => (isProposed(link) ? '#9ca3af' : 'rgba(0,0,0,0.35)'))
       // Direction cones to indicate source -> target
-      instance.linkDirectionalArrowLength((link) => (isProposed(link) ? 3 : 6))
+      instance.linkDirectionalArrowLength((link) => {
+        const spheresOn = GraphFilterState.get().organizationSpheres
+        const touchesOrg =
+          (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
+        if (spheresOn && touchesOrg) return 0
+        return isProposed(link) ? 3 : 6
+      })
       instance.linkDirectionalArrowRelPos(0.6)
       instance.linkDirectionalArrowResolution(8)
       instance.linkDirectionalArrowColor((link) => {
+        const spheresOn = GraphFilterState.get().organizationSpheres
+        const touchesOrg =
+          (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
+        if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
         if (isProposed(link)) return '#9ca3af'
         // match linkColor
         switch (link.type) {
@@ -255,6 +266,8 @@ export const Graph = () => {
       instance.nodeLabel('name')
       instance.nodeThreeObjectExtend(true)
       instance.nodeThreeObject((node: Node) => {
+        const group = new Group()
+        // Label
         const label: any = new SpriteText(node.name || '')
         label.textHeight = 3
         label.color = '#111'
@@ -266,7 +279,28 @@ export const Graph = () => {
         }
         // @ts-ignore - renderOrder exists at runtime on Object3D
         label.renderOrder = 999
-        return label
+        group.add(label)
+        // Track label for dynamic visibility toggles
+        labelMap.current.set(node.id, label)
+
+        // Organization sphere (hidden by default, toggled/updated on tick)
+        if (node.type === 'organization') {
+          const material = new MeshBasicMaterial({
+            color: 'green',
+            transparent: true,
+            opacity: 0.15,
+            depthWrite: false,
+            wireframe: true
+          } as any)
+          const sphere = new Mesh(new SphereGeometry(1, 20, 20), material)
+          sphere.visible = false
+          // put label above sphere visually
+          label.position.set(0, 0, 0)
+          group.add(sphere)
+          orgSphereMap.current.set(node.id, sphere)
+        }
+
+        return group
       })
       instance.linkLabel((link: LinkRuntime) => {
         const linkSource = link.source as NodeRuntime
@@ -285,6 +319,11 @@ export const Graph = () => {
         }
       })
       instance.linkColor((link) => {
+        // Invisible if spheres mode is on and link touches an organization
+        const spheresOn = GraphFilterState.get().organizationSpheres
+        const touchesOrg =
+          (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
+        if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
         if (isProposed(link)) return '#9ca3af'
         switch (link.type) {
           case 'memberOf':
@@ -307,6 +346,66 @@ export const Graph = () => {
       instance.onNodeClick((n) => {
         setFocusedNode(n)
       })
+
+      // Prevent dragging org nodes when spheres are enabled
+      const preventOrgDrag = (n: any) => {
+        const on = GraphFilterState.get().organizationSpheres
+        if (on && n?.type === 'organization') {
+          n.fx = undefined
+          n.fy = undefined
+          n.fz = undefined
+        }
+      }
+      ;(instance as any).onNodeDrag?.((n: any) => preventOrgDrag(n))
+      ;(instance as any).onNodeDragEnd?.((n: any) => preventOrgDrag(n))
+
+      const updateOrgSpheres = () => {
+        if (!fgRef.current) return
+        const showSpheres = GraphFilterState.get().organizationSpheres
+        const current = GraphState.get()
+        // Build membership index: target org id -> member node ids
+        const membersByOrg = new Map<string, NodeRuntime[]>()
+        for (const l of current.links) {
+          if (l.type === 'memberOf') {
+            const org = l.target
+            const member = l.source
+            if (!membersByOrg.has(org.id)) membersByOrg.set(org.id, [])
+            membersByOrg.get(org.id)!.push(member)
+          }
+        }
+        for (const [orgId, mesh] of orgSphereMap.current.entries()) {
+          const orgNode = current.nodes.find((n) => n.id === orgId)
+          if (!orgNode) {
+            mesh.visible = false
+            continue
+          }
+          const members = membersByOrg.get(orgId) || []
+          // Compute max distance from org to its members
+          let maxR = 0
+          for (const m of members) {
+            const dx = (m.x || 0) - (orgNode.x || 0)
+            const dy = (m.y || 0) - (orgNode.y || 0)
+            const dz = (m.z || 0) - (orgNode.z || 0)
+            const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+            if (d > maxR) maxR = d
+          }
+          // margin so nodes are inside
+          const margin = members.length ? 10 : 0
+          const radius = Math.max(18, maxR + margin)
+          mesh.scale.set(radius, radius, radius)
+          // Ensure the sphere is centered on the org node
+          mesh.position.set(0, 0, 0) // group is anchored to node position
+          mesh.visible = showSpheres && members.length > 0
+        }
+      }
+
+      // Update org spheres sizing each engine tick
+      instance.onEngineTick(() => {
+        updateOrgSpheres()
+      })
+
+      // Expose helper on instance for external calls
+      ;(instance as any).__updateOrgSpheres = updateOrgSpheres
     }
 
     // size to container via ResizeObserver
@@ -384,7 +483,11 @@ export const Graph = () => {
     const isTypeVisible = (t?: string) => (t ? visibleTypes[t] !== false : true)
     const showProposed = filters.showProposedEdges !== false
 
-    const filteredNodes = data.nodes.filter((n) => isTypeVisible(n.type))
+    const orgTypeVisible = visibleTypes['organization'] !== false
+    const filteredNodes = data.nodes.filter((n) => {
+      if (n.type === 'organization' && filters.organizationSpheres) return orgTypeVisible
+      return isTypeVisible(n.type)
+    })
     const nodeIdSet = new Set(filteredNodes.map((n) => n.id))
     const isProposed = (meta: any) => {
       if (!meta) return false
@@ -392,20 +495,60 @@ export const Graph = () => {
       return (meta || '').toLowerCase().includes('proposed')
     }
     const filteredLinks = data.links.filter((l) => {
-      const s = typeof l.source === 'string' ? l.source : l.source.id
-      const t = typeof l.target === 'string' ? l.target : l.target.id
+      const sObj = l.source as NodeRuntime
+      const tObj = l.target as NodeRuntime
+      const s = sObj?.id
+      const t = tObj?.id
+      if (!s || !t) return false
       if (!nodeIdSet.has(s) || !nodeIdSet.has(t)) return false
       if (!showProposed && isProposed(l.meta)) return false
       return true
     })
 
     fgRef.current.graphData({ nodes: filteredNodes as any, links: filteredLinks as any })
+    // Trigger sphere resize/visibility update now (not just on ticks)
+    const updater = (fgRef.current as any).__updateOrgSpheres
+    if (updater) updater()
     // try to fit the graph nicely on first load of data
     if (data.nodes?.length) {
       setTimeout(focus, 0)
       setTimeout(focus, 500)
     }
-  }, [data, filters.visibleNodeTypes, filters.showProposedEdges])
+  }, [data, filters.visibleNodeTypes, filters.showProposedEdges, filters.organizationSpheres])
+
+  // When toggling organization spheres, update node colors and link strengths
+  useEffect(() => {
+    if (!fgRef.current) return
+    // Hide org default nodes by making them nearly transparent when spheres are on
+    fgRef.current.nodeColor((node) => {
+      if (node.type === 'person') return 'blue'
+      if (node.type === 'project') return 'orange'
+      if (node.type === 'organization') return filters.organizationSpheres ? 'rgba(0,0,0,0.001)' : 'green'
+      return 'gray'
+    })
+
+    // Shrink org nodes to near-zero size so default mesh is effectively hidden
+    fgRef.current.nodeVal((node) => (filters.organizationSpheres && node.type === 'organization' ? 0.0001 : 1))
+
+    // Toggle our custom label visibility for orgs
+    for (const [id, label] of labelMap.current.entries()) {
+      const n = GraphState.get().nodes.find((nn) => nn.id === id)
+      if (!n) continue
+      if (n.type === 'organization') label.visible = !filters.organizationSpheres
+    }
+
+    // Bump memberOf link strength slightly when spheres are on
+    const linkForce: any = (fgRef.current as any).d3Force?.('link')
+    if (linkForce && typeof linkForce.strength === 'function') {
+      const base = 0.05
+      const boosted = 0.12
+      linkForce.strength((l: any) => (l.type === 'memberOf' && filters.organizationSpheres ? boosted : base))
+    }
+
+    // Force link color recalculation to apply invisibility
+    const prevData: any = (fgRef.current as any).graphData?.()
+    if (prevData) fgRef.current.graphData(prevData)
+  }, [filters.organizationSpheres])
 
   // Track node types in a separate effect to seed filter defaults
   useEffect(() => {
