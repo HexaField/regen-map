@@ -1,6 +1,6 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Group, Mesh, MeshBasicMaterial, SphereGeometry } from 'three'
 import SpriteText from 'three-spritetext'
 
@@ -126,6 +126,18 @@ const mergeNodes = (prevData: GraphDataRuntimeType, rawData: GraphDataType) => {
 export const Graph = () => {
   // state
   const [data, setData] = useSimpleStore(GraphState)
+  // node label size (world units) slider
+  const [labelSize, setLabelSize] = useState<number>(3)
+  const labelSizeRef = useRef(labelSize)
+  useEffect(() => {
+    labelSizeRef.current = labelSize
+    // update all existing labels when size changes
+    for (const [, label] of labelMap.current.entries()) {
+      try {
+        label.textHeight = labelSize
+      } catch {}
+    }
+  }, [labelSize])
 
   // refs for container and graph instance
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -269,7 +281,7 @@ export const Graph = () => {
         const group = new Group()
         // Label
         const label: any = new SpriteText(node.name || '')
-        label.textHeight = 3
+        label.textHeight = labelSizeRef.current
         label.color = '#111'
         label.backgroundColor = 'rgba(255,255,255,0.85)'
         label.padding = 2
@@ -432,24 +444,48 @@ export const Graph = () => {
     if (!focusedNode || !fgRef.current) return
 
     const node = focusedNode
+    const lookAt = { x: node?.x || 0, y: node?.y || 0, z: node?.z || 0 }
 
-    // center camera on node
-    const distance = 120
-    const distRatio = 1 + distance / Math.hypot(node?.x || 0, node?.y || 0, node?.z || 0)
+    // If focusing an organization with spheres enabled, fit the sphere in view
+    const spheresOn = GraphFilterState.get().organizationSpheres
+    const sphere = orgSphereMap.current.get(node.id)
+    if (spheresOn && node.type === 'organization' && sphere) {
+      // Ensure sphere is up-to-date
+      const updater = (fgRef.current as any).__updateOrgSpheres
+      if (updater) updater()
+
+      const cam: any = (fgRef.current as any).camera?.()
+      const fov = cam?.fov ? (cam.fov * Math.PI) / 180 : (75 * Math.PI) / 180
+      const radius = sphere.scale?.x || 20
+      const padding = 1.15
+      const minDist = (radius * padding) / Math.tan(fov / 2)
+
+      const currentPos = cam?.position || { x: 0, y: 0, z: 1 }
+      // Direction from node to camera
+      const dir = {
+        x: currentPos.x - lookAt.x,
+        y: currentPos.y - lookAt.y,
+        z: currentPos.z - lookAt.z
+      }
+      const len = Math.hypot(dir.x, dir.y, dir.z) || 1
+      const nx = dir.x / len
+      const ny = dir.y / len
+      const nz = dir.z / len
+
+      const targetPos = { x: lookAt.x + nx * minDist, y: lookAt.y + ny * minDist, z: lookAt.z + nz * minDist }
+      fgRef.current.cameraPosition(targetPos, lookAt, 800)
+      return
+    }
+
+    // Default: center camera on node with a nice offset
+    const baseDist = 120
+    const distRatio = 1 + baseDist / Math.hypot(node?.x || 0, node?.y || 0, node?.z || 0)
     fgRef.current.cameraPosition(
-      {
-        x: (node?.x || 0) * distRatio,
-        y: (node?.y || 0) * distRatio,
-        z: (node?.z || 0) * distRatio
-      },
-      {
-        x: node?.x || 0,
-        y: node?.y || 0,
-        z: node?.z || 0
-      },
+      { x: (node?.x || 0) * distRatio, y: (node?.y || 0) * distRatio, z: (node?.z || 0) * distRatio },
+      lookAt,
       800
     )
-  }, [focusedNode])
+  }, [focusedNode, GraphFilterState.get().organizationSpheres])
 
   useEffect(() => {
     if (!profile?.id || profile.id === focusedNode?.id) return
@@ -568,11 +604,25 @@ export const Graph = () => {
 
   return (
     <div className="w-full flex-1 px-6 pb-6">
-      <div
-        ref={containerRef}
-        className="w-full rounded-xl shadow-sm border border-neutral-200 bg-white"
-        style={{ height: 'calc(100vh - 180px)', minHeight: 360 }}
-      />
+      <div className="w-full rounded-xl shadow-sm border border-neutral-200 bg-white overflow-hidden">
+        <div className="flex items-center justify-center gap-3 px-4 py-2 border-b border-neutral-200 bg-neutral-50">
+          <label htmlFor="label-size" className="text-sm text-neutral-700 whitespace-nowrap">
+            Label size
+          </label>
+          <input
+            id="label-size"
+            type="range"
+            min={1}
+            max={15}
+            step={0.5}
+            value={labelSize}
+            onChange={(e) => setLabelSize(parseFloat(e.target.value))}
+            className="h-2 accent-neutral-700"
+            style={{ width: '15%' }}
+          />
+        </div>
+        <div ref={containerRef} className="w-full" style={{ height: 'calc(100vh - 220px)', minHeight: 320 }} />
+      </div>
     </div>
   )
 }
