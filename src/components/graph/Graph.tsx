@@ -289,12 +289,11 @@ export const Graph = () => {
             color: 'green',
             transparent: true,
             opacity: 0.15,
-            depthWrite: false,
-            wireframe: true
+            depthWrite: false
           } as any)
           const sphere = new Mesh(new SphereGeometry(1, 20, 20), material)
           sphere.visible = false
-          // put label above sphere visually
+          // keep label centered; updateOrgSpheres will scale sphere only. Optionally, lift label a bit for readability
           label.position.set(0, 0, 0)
           group.add(sphere)
           orgSphereMap.current.set(node.id, sphere)
@@ -511,8 +510,8 @@ export const Graph = () => {
     if (updater) updater()
     // try to fit the graph nicely on first load of data
     if (data.nodes?.length) {
-      setTimeout(focus, 0)
-      setTimeout(focus, 500)
+      // setTimeout(focus, 0)
+      // setTimeout(focus, 500)
     }
   }, [data, filters.visibleNodeTypes, filters.showProposedEdges, filters.organizationSpheres])
 
@@ -534,7 +533,7 @@ export const Graph = () => {
     for (const [id, label] of labelMap.current.entries()) {
       const n = GraphState.get().nodes.find((nn) => nn.id === id)
       if (!n) continue
-      if (n.type === 'organization') label.visible = !filters.organizationSpheres
+      if (n.type === 'organization') label.visible = true
     }
 
     // Bump memberOf link strength slightly when spheres are on
