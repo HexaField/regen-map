@@ -2,10 +2,9 @@ import React from 'react'
 
 export function Card({ className = '', children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={[
-      'rounded-xl bg-white/80 backdrop-blur-sm border border-neutral-200 shadow-sm',
-      className
-    ].join(' ')}>
+    <div
+      className={['rounded-xl bg-white/80 backdrop-blur-sm border border-neutral-200 shadow-sm', className].join(' ')}
+    >
       {children}
     </div>
   )

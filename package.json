@@ -6,6 +6,7 @@
   "bin": "./create.mjs",
   "scripts": {
     "dev": "vite",
+    "format": "prettier --write .",
     "build": "vite build",
     "serve": "vite preview"
   },

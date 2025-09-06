@@ -22,7 +22,7 @@ export function LeftPanels() {
 
 function PanelChrome({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-  <Card className="w-full min-w-[280px]">
+    <Card className="w-full min-w-[280px]">
       <CardHeader>
         <h3 className="text-[14px] font-medium">{title}</h3>
         <p className="text-[12px] text-neutral-500">
@@ -55,7 +55,9 @@ function CommunityDataPanel() {
               <button
                 className={[
                   'text-[11px] px-2 py-0.5 rounded-lg border transition-colors',
-                  c.enabled ? 'bg-green-100 border-green-300 text-green-700' : 'bg-white border-neutral-300 text-neutral-500'
+                  c.enabled
+                    ? 'bg-green-100 border-green-300 text-green-700'
+                    : 'bg-white border-neutral-300 text-neutral-500'
                 ].join(' ')}
                 onClick={() => toggle(c.id)}
               >

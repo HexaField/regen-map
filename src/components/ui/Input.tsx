@@ -13,9 +13,7 @@ export function Input({ className = '', iconLeft, iconRight, ...props }: Props) 
         ].join(' ')}
         {...props}
       />
-      {iconRight ? (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">{iconRight}</div>
-      ) : null}
+      {iconRight ? <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">{iconRight}</div> : null}
     </div>
   )
 }

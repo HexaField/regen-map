@@ -31,9 +31,32 @@ export function DraggableResizableModal({
   const [dragging, setDragging] = useState(false)
   const [resizing, setResizing] = useState(false)
   const dragOffsetRef = useRef({ x: 0, y: 0 })
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect Tailwind's "sm" breakpoint (mobile < 640px)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('matchMedia' in window)) return
+    const mq = window.matchMedia('(max-width: 639px)')
+    const apply = () => setIsMobile(mq.matches)
+    apply()
+    const listener = () => apply()
+    if ('addEventListener' in mq) {
+      mq.addEventListener('change', listener)
+      return () => mq.removeEventListener('change', listener)
+    } else {
+      // Deprecated fallback for older browsers
+      // @ts-ignore - addListener is deprecated but still present in some engines
+      mq.addListener(listener)
+      return () => {
+        // @ts-ignore - removeListener is deprecated but still present in some engines
+        mq.removeListener(listener)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      if (isMobile) return // disable drag/resize on mobile
       if (dragging) {
         setPos({ x: e.clientX - dragOffsetRef.current.x, y: e.clientY - dragOffsetRef.current.y })
       } else if (resizing) {
@@ -54,9 +77,10 @@ export function DraggableResizableModal({
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [dragging, resizing, minWidth, minHeight])
+  }, [dragging, resizing, minWidth, minHeight, isMobile])
 
   const onHeaderMouseDown = (e: React.MouseEvent) => {
+    if (isMobile) return // no dragging on mobile
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
     setDragging(true)
@@ -64,6 +88,7 @@ export function DraggableResizableModal({
   }
 
   const onResizeMouseDown = (e: React.MouseEvent) => {
+    if (isMobile) return // no resizing on mobile
     e.stopPropagation()
     setResizing(true)
   }
@@ -74,12 +99,16 @@ export function DraggableResizableModal({
       className={[
         'fixed z-40 rounded-xl bg-white/90 backdrop-blur border border-neutral-200 shadow-lg select-none',
         'will-change-transform',
+        isMobile ? 'inset-3' : '',
         className
       ].join(' ')}
-      style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+      style={isMobile ? undefined : { left: pos.x, top: pos.y, width: size.w, height: size.h }}
     >
       <div
-        className="cursor-move rounded-t-xl bg-white/70 px-3 py-2 border-b border-neutral-200 flex items-center justify-between"
+        className={[
+          'rounded-t-xl bg-white/70 px-3 py-2 border-b border-neutral-200 flex items-center justify-between',
+          isMobile ? 'cursor-default' : 'cursor-move'
+        ].join(' ')}
         onMouseDown={onHeaderMouseDown}
       >
         <div className="text-[13px] font-medium text-neutral-800">{title}</div>
@@ -92,20 +121,21 @@ export function DraggableResizableModal({
           </button>
         ) : null}
       </div>
-      <div className="p-3 overflow-auto" style={{ height: size.h - 40 }}>
+      <div className="p-3 overflow-auto" style={isMobile ? { height: 'calc(100% - 40px)' } : { height: size.h - 40 }}>
         {children}
       </div>
       {/* Resize handle */}
-      <div
-        className="absolute right-0 bottom-0 w-4 h-4 cursor-se-resize"
-        onMouseDown={onResizeMouseDown}
-        style={{
-          background:
-            'linear-gradient(135deg, transparent 0 50%, rgba(0,0,0,0.08) 50% 100%)',
-          borderBottomRightRadius: 12
-        }}
-        aria-label="Resize"
-      />
+      {isMobile ? null : (
+        <div
+          className="absolute right-0 bottom-0 w-4 h-4 cursor-se-resize"
+          onMouseDown={onResizeMouseDown}
+          style={{
+            background: 'linear-gradient(135deg, transparent 0 50%, rgba(0,0,0,0.08) 50% 100%)',
+            borderBottomRightRadius: 12
+          }}
+          aria-label="Resize"
+        />
+      )}
     </div>
   )
 }

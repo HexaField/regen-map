@@ -25,7 +25,7 @@ export function RightDrawer() {
         open ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
       ].join(' ')}
     >
-  <div className="w-full min-w-[320px] space-y-3">
+      <div className="w-full min-w-[320px] space-y-3">
         {/* Header card */}
         <Card>
           <div className=" h-28 rounded-t-xl bg-cover bg-center" style={{ backgroundImage: `url(${rectangleImg})` }} />

@@ -5,6 +5,7 @@ import { Graph } from '../components/graph/Graph'
 import { GraphConfigModal } from '../components/graph/GraphConfigModal'
 import { AppShell, LeftDock, RightDock } from '../components/layout/AppShell'
 import { LeftPanels } from '../components/layout/LeftPanels'
+import { MobileActions } from '../components/layout/MobileActions'
 import { RightDrawer } from '../components/layout/RightDrawer'
 import { TopControls } from '../components/layout/TopControls'
 import { ViewModeState } from '../state/ViewModeState'
@@ -25,8 +26,9 @@ export function HomePage() {
         <RightDrawer />
       </RightDock>
 
-      {/* Floating modals */}
       <GraphConfigModal />
+
+      <MobileActions />
     </AppShell>
   )
 }
