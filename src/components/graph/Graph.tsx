@@ -1,7 +1,7 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
 import React, { useCallback, useEffect, useRef } from 'react'
-import { Group, Mesh, MeshBasicMaterial, SphereGeometry } from 'three'
+import { Color, DoubleSide, Group, Mesh, ShaderMaterial, SphereGeometry } from 'three'
 import SpriteText from 'three-spritetext'
 
 import { CommunityCardsState } from '../../state/CommunityCardsState'
@@ -310,13 +310,46 @@ export const Graph = () => {
 
         // Organization sphere (hidden by default, toggled/updated on tick)
         if (node.type === 'organization') {
-          const material = new MeshBasicMaterial({
-            color: 'green',
+          // Fresnel halo shader: transparent in center, brighter towards rim
+          const haloMaterial = new ShaderMaterial({
+            uniforms: {
+              uColor: { value: new Color('springgreen') },
+              uOpacity: { value: 0.6 }, // max edge opacity
+              uPower: { value: 2.0 }, // falloff exponent
+              uBase: { value: 0.02 } // minimum center opacity
+            },
+            vertexShader: `
+              varying vec3 vNormal;
+              varying vec3 vViewPosition;
+              void main() {
+                vNormal = normalize(normalMatrix * normal);
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                vViewPosition = -mvPosition.xyz;
+                gl_Position = projectionMatrix * mvPosition;
+              }
+            `,
+            fragmentShader: `
+              precision mediump float;
+              varying vec3 vNormal;
+              varying vec3 vViewPosition;
+              uniform vec3 uColor;
+              uniform float uOpacity;
+              uniform float uPower;
+              uniform float uBase;
+              void main() {
+                vec3 n = normalize(vNormal);
+                vec3 v = normalize(vViewPosition);
+                float ndotv = abs(dot(n, v));
+                float fresnel = pow(1.0 - ndotv, uPower);
+                float alpha = clamp(uBase + fresnel * uOpacity, 0.0, 1.0);
+                gl_FragColor = vec4(uColor, alpha);
+              }
+            `,
             transparent: true,
-            opacity: 0.15,
-            depthWrite: false
-          } as any)
-          const sphere = new Mesh(new SphereGeometry(1, 20, 20), material)
+            depthWrite: false,
+            side: DoubleSide
+          })
+          const sphere = new Mesh(new SphereGeometry(1, 20, 20), haloMaterial)
           sphere.visible = false
           // Make sphere non-pickable so clicks go through only to label
           // eslint-disable-next-line @typescript-eslint/no-empty-function
