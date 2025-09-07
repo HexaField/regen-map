@@ -3,20 +3,15 @@ import React, { useEffect } from 'react'
 
 import placeholder from '../../assets/placeholder-avatar.webp'
 import rectangleImg from '../../assets/placeholder-background.png'
-import { GraphState, setFocusedNode } from '../../state/GraphState'
-import { NodePanelOpenState } from '../../state/NodePanelState'
+import { FocusedNodeState, GraphState, setFocusedNode } from '../../state/GraphState'
 import { SelectedProfileState } from '../../state/ProfileState'
 import { Button } from '../ui/Button'
 import { Card, CardContent, CardHeader } from '../ui/Card'
 import { Chip } from '../ui/Chip'
 
 export function RightDrawer() {
-  const [open, setOpen] = useSimpleStore(NodePanelOpenState)
+  const [open, setOpen] = useSimpleStore(FocusedNodeState)
   const [profile] = useSimpleStore(SelectedProfileState)
-
-  useEffect(() => {
-    setOpen(!!profile?.id)
-  }, [!!profile])
 
   return (
     <div
@@ -40,7 +35,7 @@ export function RightDrawer() {
                 <div className="text-[16px] font-semibold">{profile?.name}</div>
                 <div className="text-[12px] text-neutral-500 max-w-[260px]">{profile?.title}</div>
               </div>
-              <Button variant="ghost" className="rounded-full text-[12px] h-8 px-3" onClick={() => setOpen(false)}>
+              <Button variant="ghost" className="rounded-full text-[12px] h-8 px-3" onClick={() => setOpen(null)}>
                 Close
               </Button>
             </div>

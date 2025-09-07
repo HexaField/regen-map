@@ -3,8 +3,8 @@ import React from 'react'
 
 import { AppTab, AppTabState } from '../../state/AppTabsState'
 import { toggleGraphConfigModal } from '../../state/GraphConfigModalState'
+import { closeFocusedNode, FocusedNodeState } from '../../state/GraphState'
 import { LeftDockOpenState, openLeftDock, toggleLeftDock } from '../../state/LeftDockState'
-import { closeNodePanel, toggleNodePanel } from '../../state/NodePanelState'
 import { SearchQueryState } from '../../state/SearchState'
 import { ViewMode, ViewModeState } from '../../state/ViewModeState'
 import { Button } from '../ui/Button'
@@ -17,6 +17,7 @@ export function TopControls() {
   const [mode, setMode] = useSimpleStore(ViewModeState)
   const [query, setQuery] = useSimpleStore(SearchQueryState)
   const [leftOpen] = useSimpleStore(LeftDockOpenState)
+  const [focusedNode] = useSimpleStore(FocusedNodeState)
 
   return (
     <div className="z-30 p-6 flex flex-row justify-between items-center">
@@ -65,7 +66,7 @@ export function TopControls() {
         <Button variant="ghost" className="rounded-full" onClick={toggleGraphConfigModal}>
           Graph Settings
         </Button>
-        <Button variant="ghost" className="rounded-full" onClick={toggleNodePanel}>
+        <Button variant="ghost" disabled={!focusedNode} className="rounded-full" onClick={() => closeFocusedNode()}>
           Node Information
         </Button>
       </div>

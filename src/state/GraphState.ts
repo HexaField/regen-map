@@ -102,3 +102,7 @@ export const setFocusedNode = (focusedNode: NodeRuntime) => {
   })
   FocusedNodeState.set(focusedNode)
 }
+
+export const closeFocusedNode = () => {
+  FocusedNodeState.set(null)
+}

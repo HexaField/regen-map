@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 
 import { closeGraphConfigModal, toggleGraphConfigModal } from '../../state/GraphConfigModalState'
+import { closeFocusedNode } from '../../state/GraphState'
 import { closeLeftDock, toggleLeftDock } from '../../state/LeftDockState'
-import { closeNodePanel, toggleNodePanel } from '../../state/NodePanelState'
 import { Button } from '../ui/Button'
 
 export function MobileActions() {
@@ -15,7 +15,7 @@ export function MobileActions() {
       onClick: () => {
         // close others
         closeLeftDock()
-        closeNodePanel()
+        closeFocusedNode()
         // then toggle selected
         toggleGraphConfigModal()
       }
@@ -24,7 +24,7 @@ export function MobileActions() {
       label: 'Panels',
       onClick: () => {
         closeGraphConfigModal()
-        closeNodePanel()
+        closeFocusedNode()
         toggleLeftDock()
       }
     },
@@ -33,7 +33,6 @@ export function MobileActions() {
       onClick: () => {
         closeGraphConfigModal()
         closeLeftDock()
-        toggleNodePanel()
       }
     }
   ]
