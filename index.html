@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Regen Map MVP</title>
+    <script>
+      // Set initial theme early to avoid FOUC. Respects user choice in localStorage, then OS.
+      ;(() => {
+        try {
+          const ls = localStorage.getItem('theme') // 'light' | 'dark' | 'system'
+          const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          const wantDark = ls === 'dark' || (!ls || ls === 'system') && systemPrefersDark
+          const root = document.documentElement
+          if (wantDark) root.classList.add('dark')
+          else root.classList.remove('dark')
+        } catch {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

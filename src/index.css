@@ -1,1 +1,28 @@
 @import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light/dark CSS variables used throughout the app */
+:root {
+	color-scheme: light dark;
+	--bg: 242 242 242; /* neutral-100 */
+	--fg: 23 23 23; /* neutral-900 */
+	--muted: 115 115 115; /* neutral-500 */
+	--card: 255 255 255 / 0.8; /* white/80 */
+	--card-border: 229 229 229; /* neutral-200 */
+	--accent: 38 38 38; /* neutral-800 */
+}
+
+.dark {
+	--bg: 23 23 23; /* neutral-900 */
+	--fg: 245 245 245; /* neutral-100 */
+	--muted: 163 163 163; /* neutral-400 */
+	--card: 23 23 23 / 0.7; /* near black/70 with blur */
+	--card-border: 64 64 64; /* neutral-700 */
+	--accent: 245 245 245; /* neutral-100 */
+}
+
+html, body, #root { height: 100%; }
+body {
+	background: rgb(var(--bg));
+	color: rgb(var(--fg));
+}
