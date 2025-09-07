@@ -220,9 +220,9 @@ export const Graph = () => {
       fgRef.current = instance
 
       // basic styling & behavior
-  // Set initial background based on current theme
-  const isDark = document.documentElement.classList.contains('dark')
-  instance.backgroundColor(isDark ? '#000000' : '#f5f5f4') // dark:black, light:neutral-100
+      // Set initial background based on current theme
+      const isDark = document.documentElement.classList.contains('dark')
+      instance.backgroundColor(isDark ? '#000000' : '#f5f5f4') // dark:black, light:neutral-100
       instance.showNavInfo(false)
       instance.nodeRelSize(6)
       instance.nodeOpacity(0.9)
@@ -292,6 +292,12 @@ export const Graph = () => {
           label.backgroundColor = 'rgba(255,255,255,0.85)'
         }
         label.padding = 2
+        // mark label for interaction filtering
+        try {
+          label.userData = label.userData || {}
+          label.userData.__isOrgLabel = node.type === 'organization'
+          label.userData.__nodeId = node.id
+        } catch {}
         if (label.material) {
           label.material.depthWrite = false
           label.material.depthTest = false
@@ -312,6 +318,14 @@ export const Graph = () => {
           } as any)
           const sphere = new Mesh(new SphereGeometry(1, 20, 20), material)
           sphere.visible = false
+          // Make sphere non-pickable so clicks go through only to label
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          ;(sphere as any).raycast = () => {}
+          try {
+            sphere.userData = sphere.userData || {}
+            sphere.userData.__isOrgSphere = true
+            sphere.userData.__nodeId = node.id
+          } catch {}
           // keep label centered; updateOrgSpheres will scale sphere only. Optionally, lift label a bit for readability
           label.position.set(0, 0, 0)
           group.add(sphere)
@@ -575,6 +589,26 @@ export const Graph = () => {
     // Trigger sphere resize/visibility update now (not just on ticks)
     const updater = (fgRef.current as any).__updateOrgSpheres
     if (updater) updater()
+    // Ensure org default meshes are not pickable when spheres mode is on (labels remain clickable)
+    try {
+      const spheresOn = GraphFilterState.get().organizationSpheres
+      if (spheresOn) {
+        for (const n of filteredNodes) {
+          if (n.type !== 'organization') continue
+          const rootObj: any = (n as any).__threeObj
+          if (!rootObj) continue
+          rootObj.traverse?.((obj: any) => {
+            if (obj?.type === 'Mesh' && !obj?.userData?.__isOrgSphere) {
+              if (!obj.__origRaycast && typeof obj.raycast === 'function') {
+                obj.__origRaycast = obj.raycast
+              }
+              // eslint-disable-next-line @typescript-eslint/no-empty-function
+              obj.raycast = () => {}
+            }
+          })
+        }
+      }
+    } catch {}
     // try to fit the graph nicely on first load of data
     if (data.nodes?.length) {
       // setTimeout(focus, 0)
@@ -606,14 +640,37 @@ export const Graph = () => {
     // Bump memberOf link strength slightly when spheres are on
     const linkForce: any = (fgRef.current as any).d3Force?.('link')
     if (linkForce && typeof linkForce.strength === 'function') {
-      const base = 0.05
-      const boosted = 0.12
-      linkForce.strength((l: any) => (l.type === 'memberOf' && filters.organizationSpheres ? boosted : base))
+      const base = 0.1
+      const boosted = 0.5
+      linkForce.strength((l: any) => (filters.organizationSpheres ? boosted : base))
     }
 
     // Force link color recalculation to apply invisibility
     const prevData: any = (fgRef.current as any).graphData?.()
     if (prevData) fgRef.current.graphData(prevData)
+
+    // Toggle org node default mesh pickability: when spheres are on, only labels should be clickable
+    try {
+      const current: any = (fgRef.current as any).graphData?.()
+      const nodes: any[] = current?.nodes || []
+      for (const n of nodes) {
+        if (n.type !== 'organization') continue
+        const rootObj: any = (n as any).__threeObj
+        if (!rootObj) continue
+        rootObj.traverse?.((obj: any) => {
+          if (obj?.type !== 'Mesh') return
+          const isOrgSphere = !!obj?.userData?.__isOrgSphere
+          if (isOrgSphere) return // sphere already non-pickable
+          if (filters.organizationSpheres) {
+            if (!obj.__origRaycast && typeof obj.raycast === 'function') obj.__origRaycast = obj.raycast
+            // eslint-disable-next-line @typescript-eslint/no-empty-function
+            obj.raycast = () => {}
+          } else if (obj.__origRaycast) {
+            obj.raycast = obj.__origRaycast
+          }
+        })
+      }
+    } catch {}
   }, [filters.organizationSpheres])
 
   // Track node types in a separate effect to seed filter defaults
