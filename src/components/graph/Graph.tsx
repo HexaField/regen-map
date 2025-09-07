@@ -220,7 +220,9 @@ export const Graph = () => {
       fgRef.current = instance
 
       // basic styling & behavior
-      instance.backgroundColor('#f5f5f4') // neutral-100
+  // Set initial background based on current theme
+  const isDark = document.documentElement.classList.contains('dark')
+  instance.backgroundColor(isDark ? '#000000' : '#f5f5f4') // dark:black, light:neutral-100
       instance.showNavInfo(false)
       instance.nodeRelSize(6)
       instance.nodeOpacity(0.9)
@@ -282,8 +284,13 @@ export const Graph = () => {
         // Label
         const label: any = new SpriteText(node.name || '')
         label.textHeight = labelSizeRef.current
-        label.color = '#111'
-        label.backgroundColor = 'rgba(255,255,255,0.85)'
+        if (document.documentElement.classList.contains('dark')) {
+          label.color = '#fff'
+          label.backgroundColor = 'rgba(31,31,31,0.85)'
+        } else {
+          label.color = '#111'
+          label.backgroundColor = 'rgba(255,255,255,0.85)'
+        }
         label.padding = 2
         if (label.material) {
           label.material.depthWrite = false
@@ -438,6 +445,30 @@ export const Graph = () => {
         }
       } catch {}
     }
+  }, [])
+
+  // React to theme changes for background and label styles
+  useEffect(() => {
+    const applySceneTheme = (isDark: boolean) => {
+      if (!fgRef.current) return
+      fgRef.current.backgroundColor(isDark ? '#000000' : '#f5f5f4')
+      // Update all existing labels
+      for (const [, label] of labelMap.current.entries()) {
+        try {
+          label.color = isDark ? '#ffffff' : '#111111'
+          label.backgroundColor = isDark ? 'rgba(31,31,31,0.85)' : 'rgba(255,255,255,0.85)'
+          if (label.material) {
+            label.material.needsUpdate = true
+          }
+        } catch {}
+      }
+    }
+
+    const handler = (e: any) => applySceneTheme(!!e?.detail?.isDark)
+    // Apply immediately on mount using current class
+    applySceneTheme(document.documentElement.classList.contains('dark'))
+    window.addEventListener('themechange', handler as any)
+    return () => window.removeEventListener('themechange', handler as any)
   }, [])
 
   useEffect(() => {

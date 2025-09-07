@@ -11,6 +11,7 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Segmented } from '../ui/Segmented'
 import { Tabs } from '../ui/Tabs'
+import { applyTheme, getTheme, ThemeMode } from '../../theme'
 
 export function TopControls() {
   const [tab, setTab] = useSimpleStore(AppTabState)
@@ -18,9 +19,15 @@ export function TopControls() {
   const [query, setQuery] = useSimpleStore(SearchQueryState)
   const [leftOpen] = useSimpleStore(LeftDockOpenState)
   const [focusedNode] = useSimpleStore(FocusedNodeState)
+  const [theme, setTheme] = React.useState<ThemeMode>(() => (typeof window !== 'undefined' ? getTheme() : 'system'))
+
+  const onThemeChange = (mode: ThemeMode) => {
+    setTheme(mode)
+    if (typeof window !== 'undefined') applyTheme(mode)
+  }
 
   return (
-    <div className="z-30 p-6 flex flex-row justify-between items-center">
+    <div className="z-30 p-6 flex flex-row justify-between items-center text-neutral-900 dark:text-neutral-100">
       {/* Left tabs */}
       {/* <div className="z-30 left-6 flex items-center gap-3">
         <Tabs
@@ -63,6 +70,17 @@ export function TopControls() {
       {/* Right search and node info button (hidden on mobile; shown from sm+) */}
       <div className="z-30 right-6 hidden sm:flex items-center gap-3">
         {/* <Input placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="w-[260px]" /> */}
+        <select
+          value={theme}
+          onChange={(e) => onThemeChange(e.target.value as ThemeMode)}
+          className="h-9 rounded-md border border-neutral-200 bg-white/80 px-2 text-[13px] text-neutral-800 dark:bg-neutral-900/70 dark:text-neutral-100 dark:border-neutral-700"
+          aria-label="Theme"
+          title="Theme"
+        >
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="system">System</option>
+        </select>
         <Button variant="ghost" className="rounded-full" onClick={toggleGraphConfigModal}>
           Graph Settings
         </Button>

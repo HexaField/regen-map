@@ -97,7 +97,9 @@ export function DraggableResizableModal({
     <div
       ref={containerRef}
       className={[
-        'fixed z-40 rounded-xl bg-white/90 backdrop-blur border border-neutral-200 shadow-lg select-none',
+  'fixed z-40 rounded-xl backdrop-blur border shadow-lg select-none',
+  'bg-white/90 border-neutral-200',
+  'dark:bg-neutral-900/80 dark:border-neutral-700',
         'will-change-transform',
         isMobile ? 'inset-3' : '',
         className
@@ -106,15 +108,17 @@ export function DraggableResizableModal({
     >
       <div
         className={[
-          'rounded-t-xl bg-white/70 px-3 py-2 border-b border-neutral-200 flex items-center justify-between',
+          'rounded-t-xl px-3 py-2 border-b flex items-center justify-between',
+          'bg-white/70 border-neutral-200',
+          'dark:bg-neutral-900/70 dark:border-neutral-700',
           isMobile ? 'cursor-default' : 'cursor-move'
         ].join(' ')}
         onMouseDown={onHeaderMouseDown}
       >
-        <div className="text-[13px] font-medium text-neutral-800">{title}</div>
+        <div className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">{title}</div>
         {onClose ? (
           <button
-            className="text-neutral-500 hover:text-neutral-800 text-[13px] h-6 w-6 inline-flex items-center justify-center rounded-md hover:bg-neutral-100"
+            className="text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 text-[13px] h-6 w-6 inline-flex items-center justify-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
             onClick={onClose}
           >
             ✕

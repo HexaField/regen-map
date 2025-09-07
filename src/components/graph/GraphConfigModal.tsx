@@ -35,9 +35,9 @@ export function GraphConfigModal() {
       initialY={160}
       onClose={closeGraphConfigModal}
     >
-      <div className="text-[13px] text-neutral-700 space-y-4">
+    <div className="text-[13px] text-neutral-700 dark:text-neutral-200 space-y-4">
         <div>
-          <div className="text-[12px] font-medium text-neutral-500 mb-2">Labels</div>
+      <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Labels</div>
           <label className="flex items-center gap-3">
             <span className="text-[13px] whitespace-nowrap">Label size</span>
             <input
@@ -47,19 +47,19 @@ export function GraphConfigModal() {
               step={0.5}
               value={filters.labelSize}
               onChange={(e) => setLabelSize(parseFloat(e.target.value))}
-              className="h-2 accent-neutral-700 flex-1"
+              className="h-2 accent-neutral-700 dark:accent-neutral-300 flex-1"
             />
-            <span className="w-8 text-right tabular-nums text-[12px] text-neutral-500">
+            <span className="w-8 text-right tabular-nums text-[12px] text-neutral-500 dark:text-neutral-400">
               {filters.labelSize.toFixed(1)}
             </span>
           </label>
         </div>
 
         <div>
-          <div className="text-[12px] font-medium text-neutral-500 mb-2">Nodes</div>
+          <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Nodes</div>
           <div className="flex flex-col gap-2">
             {types.length === 0 ? (
-              <div className="text-[12px] text-neutral-400">No node types found.</div>
+              <div className="text-[12px] text-neutral-400 dark:text-neutral-500">No node types found.</div>
             ) : (
               types.map((t) => (
                 <label key={t} className="inline-flex items-center gap-2">
@@ -76,8 +76,8 @@ export function GraphConfigModal() {
           </div>
         </div>
 
-        <div className="pt-2 border-t border-neutral-200">
-          <div className="text-[12px] font-medium text-neutral-500 mb-2">Edges</div>
+        <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Edges</div>
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
@@ -89,8 +89,8 @@ export function GraphConfigModal() {
           </label>
         </div>
 
-        <div className="pt-2 border-t border-neutral-200">
-          <div className="text-[12px] font-medium text-neutral-500 mb-2">Organizations</div>
+        <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Organizations</div>
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
@@ -100,7 +100,7 @@ export function GraphConfigModal() {
             />
             <span>Render organizations as enclosing spheres</span>
           </label>
-          <div className="text-[12px] text-neutral-500 mt-1">
+          <div className="text-[12px] text-neutral-500 dark:text-neutral-400 mt-1">
             When enabled, organization nodes become transparent and a clickable enclosing sphere is drawn around their
             members; member-of forces are slightly stronger.
           </div>
