@@ -11,7 +11,7 @@ export const GraphFilterState = createSimpleStore<GraphFilter>({
   visibleNodeTypes: {},
   showProposedEdges: true,
   organizationSpheres: true,
-  labelSize: 3
+  labelSize: 4
 })
 
 // Ensure that any new types default to visible
