@@ -25,6 +25,11 @@ export function applyTheme(mode: ThemeMode) {
   const useDark = mode === 'dark' || (mode === 'system' && prefersDark())
   setDarkClass(useDark)
 
+  // Notify listeners (e.g., 3D scene) that theme changed
+  try {
+    window.dispatchEvent(new CustomEvent('themechange', { detail: { mode, isDark: useDark } }))
+  } catch {}
+
   // manage listener for system changes only in 'system' mode
   if (mediaListener && media) {
     media.removeEventListener('change', mediaListener)
@@ -32,7 +37,13 @@ export function applyTheme(mode: ThemeMode) {
   }
   if (mode === 'system' && window.matchMedia) {
     media = window.matchMedia('(prefers-color-scheme: dark)')
-    mediaListener = () => setDarkClass(prefersDark())
+    mediaListener = () => {
+      const dark = prefersDark()
+      setDarkClass(dark)
+      try {
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { mode: 'system', isDark: dark } }))
+      } catch {}
+    }
     media.addEventListener('change', mediaListener)
   }
 }
