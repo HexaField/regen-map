@@ -20,14 +20,15 @@ export function MobileActions() {
         toggleGraphConfigModal()
       }
     },
-    {
-      label: 'Panels',
-      onClick: () => {
-        closeGraphConfigModal()
-        closeFocusedNode()
-        toggleLeftDock()
-      }
-    },
+    // Theme moved into Graph Settings
+    // {
+    //   label: 'Panels',
+    //   onClick: () => {
+    //     closeGraphConfigModal()
+    //     closeFocusedNode()
+    //     toggleLeftDock()
+    //   }
+    // },
     {
       label: 'Node Information',
       onClick: () => {
@@ -40,7 +41,7 @@ export function MobileActions() {
   return (
     <div className="sm:hidden">
       {/* Toggle button (FAB) */}
-      <div className="fixed bottom-4 right-4 z-40">
+      <div className="fixed top-4 right-4 z-40">
         <Button
           aria-label={open ? 'Close menu' : 'Open menu'}
           variant="pill"
@@ -64,7 +65,7 @@ export function MobileActions() {
       {/* Action sheet */}
       <div
         className={[
-          'fixed bottom-20 right-4 z-40 w-[220px] rounded-xl border border-neutral-200 bg-white/95 backdrop-blur shadow-xl transition-all',
+          'fixed top-20 right-4 z-40 w-[220px] rounded-xl border border-neutral-200 bg-white/95 backdrop-blur shadow-xl transition-all',
           open ? 'opacity-100 translate-y-0' : 'pointer-events-none opacity-0 translate-y-2'
         ].join(' ')}
         role="menu"

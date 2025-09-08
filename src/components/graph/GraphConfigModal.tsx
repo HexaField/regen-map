@@ -12,12 +12,15 @@ import {
   setShowProposedEdges
 } from '../../state/GraphFilterState'
 import { GraphState } from '../../state/GraphState'
+import { applyTheme, getTheme, ThemeMode } from '../../theme'
 import { DraggableResizableModal } from '../ui/DraggableResizableModal'
+import { Segmented } from '../ui/Segmented'
 
 export function GraphConfigModal() {
   const [open, setOpen] = useSimpleStore(GraphConfigModalOpenState)
   const [data] = useSimpleStore(GraphState)
   const [filters] = useSimpleStore(GraphFilterState)
+  const [themeMode, setThemeMode] = React.useState<ThemeMode>(() => getTheme())
   // derive types from current data and ensure presence in filter state
   const types = Array.from(new Set(data.nodes.map((n) => n.type).filter(Boolean) as string[]))
 
@@ -37,6 +40,22 @@ export function GraphConfigModal() {
       onClose={closeGraphConfigModal}
     >
       <div className="text-[13px] text-neutral-700 dark:text-neutral-200 space-y-4">
+        <div>
+          <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Theme</div>
+          <Segmented
+            items={[
+              { id: 'light', label: 'Light' },
+              { id: 'dark', label: 'Dark' },
+              { id: 'system', label: 'System' }
+            ]}
+            value={themeMode}
+            onChange={(id) => {
+              const m = id as ThemeMode
+              setThemeMode(m)
+              applyTheme(m)
+            }}
+          />
+        </div>
         <div>
           <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Focus</div>
           <label className="inline-flex items-center gap-2">

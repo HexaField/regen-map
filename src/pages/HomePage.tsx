@@ -27,7 +27,6 @@ export function HomePage() {
       </RightDock>
 
       <GraphConfigModal />
-
       <MobileActions />
     </AppShell>
   )
