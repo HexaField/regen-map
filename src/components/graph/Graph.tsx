@@ -460,17 +460,7 @@ export const Graph = () => {
         setFocusedNode(n)
       })
 
-      // Prevent dragging org nodes when spheres are enabled
-      const preventOrgDrag = (n: NodeRuntime) => {
-        const on = GraphFilterState.get().organizationSpheres
-        if (on && n?.type === 'organization') {
-          n.fx = undefined
-          n.fy = undefined
-          n.fz = undefined
-        }
-      }
-      instance.onNodeDrag(preventOrgDrag)
-      instance.onNodeDragEnd(preventOrgDrag)
+      instance.enableNodeDrag(false)
 
       const updateOrgSpheres = () => {
         if (!fgRef.current) return
