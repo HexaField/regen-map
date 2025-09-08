@@ -142,6 +142,14 @@ const mergeNodes = (prevData: GraphDataRuntimeType, rawData: GraphDataType) => {
   }
 }
 
+// helper to detect proposed links via meta field
+const isProposed = (link: LinkRuntime) => {
+  const m = link.meta
+  if (!m) return false
+  if (Array.isArray(m)) return m.some((s) => (s || '').toLowerCase().includes('proposed'))
+  return (m || '').toLowerCase().includes('proposed')
+}
+
 export const Graph = () => {
   // state
   const [data, setData] = useSimpleStore(GraphState)
@@ -273,6 +281,134 @@ export const Graph = () => {
     }
   }, [cards])
 
+  const applyDynamicColors = useCallback(() => {
+    if (!fgRef.current) return
+    const baseNodeColorByType = (t?: string) => {
+      if (t === 'person') return 'blue'
+      if (t === 'project') return 'orange'
+      if (t === 'organization') return 'green'
+      return 'gray'
+    }
+
+    const baseLinkColor = (link: LinkRuntime) => {
+      // Invisible if spheres mode is on and link touches an organization
+      const spheresOn = GraphFilterState.get().organizationSpheres
+      const touchesOrg = link.source?.type === 'organization' || link.target?.type === 'organization'
+      if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
+      if (isProposed(link)) return '#9ca3af'
+      switch (link.type) {
+        case 'memberOf':
+          return 'orange'
+        case 'knows':
+          return 'purple'
+        case 'maintainer':
+          return 'red'
+        case 'softwareRequirement':
+          return 'cyan'
+        case 'tag':
+          return 'orange'
+        default:
+          return 'black'
+      }
+    }
+
+    const getFadeShades = () => {
+      const isDark = isDarkRef.current
+      return {
+        node: isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.35)', // neutral-700 vs neutral-200
+        link: isDark ? 'rgba(75,85,99,0.25)' : 'rgba(156,163,175,0.3)', // neutral-600 vs neutral-400
+        arrow: isDark ? 'rgba(75,85,99,0.25)' : 'rgba(156,163,175,0.3)'
+      }
+    }
+
+    const isLitNode = (node: NodeRuntime) => {
+      const fade = GraphFilterState.get().focusFade
+      const focusedArr = FocusedNodeState.get()
+      const q = (SearchQueryState.get() || '').trim().toLowerCase()
+      const hasQueryMatches =
+        q.length > 0 && GraphState.get().nodes.some((n) => (n.name || '').toLowerCase().includes(q))
+      const nodeMatches = q.length > 0 && (node.name || '').toLowerCase().includes(q)
+
+      // Focus lit logic
+      let focusLit = true
+      if (fade && focusedArr.length) {
+        const focusIds = new Set(focusedArr.map((f) => f.id))
+        if (focusIds.has(node.id)) focusLit = true
+        else {
+          // neighbor if directly connected to any focused via any link
+          const neighbors = new Set<string>()
+          for (const l of GraphState.get().links) {
+            if (focusIds.has(l.source.id)) neighbors.add(l.target.id)
+            if (focusIds.has(l.target.id)) neighbors.add(l.source.id)
+          }
+          focusLit = neighbors.has(node.id)
+        }
+      }
+
+      // Combine with search: if search is active and has matches
+      if (hasQueryMatches) {
+        if (!fade || !focusedArr.length) {
+          // Search-only: only matching nodes are lit
+          return !!nodeMatches
+        }
+        // Both active: union of focus-lit and search matches
+        return focusLit || nodeMatches
+      }
+
+      // No search; return based on focus fade
+      if (!fade || !focusedArr.length) return true
+      return focusLit
+    }
+
+    const isLitLink = (link: LinkRuntime) => {
+      const fade = GraphFilterState.get().focusFade
+      const focusedArr = FocusedNodeState.get()
+      const q = (SearchQueryState.get() || '').trim().toLowerCase()
+      const hasQueryMatches =
+        q.length > 0 && GraphState.get().nodes.some((n) => (n.name || '').toLowerCase().includes(q))
+      const sMatch = q.length > 0 && (link.source.name || '').toLowerCase().includes(q)
+      const tMatch = q.length > 0 && (link.target.name || '').toLowerCase().includes(q)
+      const searchLit = hasQueryMatches ? sMatch && tMatch : true
+
+      // Focus logic
+      const focusIds = new Set(focusedArr.map((f) => f.id))
+      const focusLit = fade && focusedArr.length ? focusIds.has(link.source.id) || focusIds.has(link.target.id) : true
+
+      if (hasQueryMatches) {
+        if (!fade || !focusedArr.length) {
+          // Search-only: only links fully between matching nodes
+          return searchLit
+        }
+        // Both active: union of focus-lit links and search-lit links
+        return focusLit || searchLit
+      }
+      // No search; respect focus
+      return focusLit
+    }
+
+    fgRef.current.nodeColor((node) => {
+      const orgSpheres = GraphFilterState.get().organizationSpheres
+      if (orgSpheres && node.type === 'organization') return 'rgba(0,0,0,0.001)'
+      if (isLitNode(node as NodeRuntime)) return baseNodeColorByType((node as NodeRuntime).type)
+      return getFadeShades().node
+    })
+
+    fgRef.current.linkColor((link) => {
+      const c = baseLinkColor(link as LinkRuntime)
+      const orgSpheres = GraphFilterState.get().organizationSpheres
+      if (orgSpheres && (link.source.type === 'organization' || link.target.type === 'organization'))
+        return 'rgba(0,0,0,0.001)'
+      if (isLitLink(link as LinkRuntime)) return c
+      return getFadeShades().link
+    })
+
+    fgRef.current.linkDirectionalArrowColor((link) => {
+      const c = baseLinkColor(link as LinkRuntime)
+      if (isLitLink(link as LinkRuntime)) return c
+      return getFadeShades().arrow
+    })
+  }, [fgRef.current])
+
   // initialize the ForceGraph3D instance once
   useEffect(() => {
     if (!containerRef.current) return
@@ -291,13 +427,6 @@ export const Graph = () => {
       instance.nodeRelSize(6)
       instance.nodeOpacity(0.9)
       instance.linkOpacity(0.3)
-      // helper to detect proposed links via meta field
-      const isProposed = (link: LinkRuntime) => {
-        const m = link.meta
-        if (!m) return false
-        if (Array.isArray(m)) return m.some((s) => (s || '').toLowerCase().includes('proposed'))
-        return (m || '').toLowerCase().includes('proposed')
-      }
       // width and base color adapt to meta:proposed
       instance.linkWidth((link) => (isProposed(link) ? 0.6 : 1))
       instance.linkColor((link) => (isProposed(link) ? '#9ca3af' : 'rgba(0,0,0,0.35)'))
@@ -420,134 +549,6 @@ export const Graph = () => {
         }
       })
       // Apply dynamic color/opacity functions
-      const applyDynamicColors = () => {
-        if (!fgRef.current) return
-        const baseNodeColorByType = (t?: string) => {
-          if (t === 'person') return 'blue'
-          if (t === 'project') return 'orange'
-          if (t === 'organization') return 'green'
-          return 'gray'
-        }
-
-        const baseLinkColor = (link: LinkRuntime) => {
-          // Invisible if spheres mode is on and link touches an organization
-          const spheresOn = GraphFilterState.get().organizationSpheres
-          const touchesOrg = link.source?.type === 'organization' || link.target?.type === 'organization'
-          if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
-          if (isProposed(link)) return '#9ca3af'
-          switch (link.type) {
-            case 'memberOf':
-              return 'orange'
-            case 'knows':
-              return 'purple'
-            case 'maintainer':
-              return 'red'
-            case 'softwareRequirement':
-              return 'cyan'
-            case 'tag':
-              return 'orange'
-            default:
-              return 'black'
-          }
-        }
-
-        const getFadeShades = () => {
-          const isDark = isDarkRef.current
-          return {
-            node: isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.35)', // neutral-700 vs neutral-200
-            link: isDark ? 'rgba(75,85,99,0.25)' : 'rgba(156,163,175,0.3)', // neutral-600 vs neutral-400
-            arrow: isDark ? 'rgba(75,85,99,0.25)' : 'rgba(156,163,175,0.3)'
-          }
-        }
-
-        const isLitNode = (node: NodeRuntime) => {
-          const fade = GraphFilterState.get().focusFade
-          const focusedArr = FocusedNodeState.get()
-          const q = (SearchQueryState.get() || '').trim().toLowerCase()
-          const hasQueryMatches =
-            q.length > 0 && GraphState.get().nodes.some((n) => (n.name || '').toLowerCase().includes(q))
-          const nodeMatches = q.length > 0 && (node.name || '').toLowerCase().includes(q)
-
-          // Focus lit logic
-          let focusLit = true
-          if (fade && focusedArr.length) {
-            const focusIds = new Set(focusedArr.map((f) => f.id))
-            if (focusIds.has(node.id)) focusLit = true
-            else {
-              // neighbor if directly connected to any focused via any link
-              const neighbors = new Set<string>()
-              for (const l of GraphState.get().links) {
-                if (focusIds.has(l.source.id)) neighbors.add(l.target.id)
-                if (focusIds.has(l.target.id)) neighbors.add(l.source.id)
-              }
-              focusLit = neighbors.has(node.id)
-            }
-          }
-
-          // Combine with search: if search is active and has matches
-          if (hasQueryMatches) {
-            if (!fade || !focusedArr.length) {
-              // Search-only: only matching nodes are lit
-              return !!nodeMatches
-            }
-            // Both active: union of focus-lit and search matches
-            return focusLit || nodeMatches
-          }
-
-          // No search; return based on focus fade
-          if (!fade || !focusedArr.length) return true
-          return focusLit
-        }
-
-        const isLitLink = (link: LinkRuntime) => {
-          const fade = GraphFilterState.get().focusFade
-          const focusedArr = FocusedNodeState.get()
-          const q = (SearchQueryState.get() || '').trim().toLowerCase()
-          const hasQueryMatches =
-            q.length > 0 && GraphState.get().nodes.some((n) => (n.name || '').toLowerCase().includes(q))
-          const sMatch = q.length > 0 && (link.source.name || '').toLowerCase().includes(q)
-          const tMatch = q.length > 0 && (link.target.name || '').toLowerCase().includes(q)
-          const searchLit = hasQueryMatches ? sMatch && tMatch : true
-
-          // Focus logic
-          const focusIds = new Set(focusedArr.map((f) => f.id))
-          const focusLit =
-            fade && focusedArr.length ? focusIds.has(link.source.id) || focusIds.has(link.target.id) : true
-
-          if (hasQueryMatches) {
-            if (!fade || !focusedArr.length) {
-              // Search-only: only links fully between matching nodes
-              return searchLit
-            }
-            // Both active: union of focus-lit links and search-lit links
-            return focusLit || searchLit
-          }
-          // No search; respect focus
-          return focusLit
-        }
-
-        fgRef.current.nodeColor((node) => {
-          const orgSpheres = GraphFilterState.get().organizationSpheres
-          if (orgSpheres && node.type === 'organization') return 'rgba(0,0,0,0.001)'
-          if (isLitNode(node as NodeRuntime)) return baseNodeColorByType((node as NodeRuntime).type)
-          return getFadeShades().node
-        })
-
-        fgRef.current.linkColor((link) => {
-          const c = baseLinkColor(link as LinkRuntime)
-          const orgSpheres = GraphFilterState.get().organizationSpheres
-          if (orgSpheres && (link.source.type === 'organization' || link.target.type === 'organization'))
-            return 'rgba(0,0,0,0.001)'
-          if (isLitLink(link as LinkRuntime)) return c
-          return getFadeShades().link
-        })
-
-        fgRef.current.linkDirectionalArrowColor((link) => {
-          const c = baseLinkColor(link as LinkRuntime)
-          if (isLitLink(link as LinkRuntime)) return c
-          return getFadeShades().arrow
-        })
-      }
 
       applyDynamicColors()
       // Apply curvature and rotation for multi-links
@@ -568,9 +569,9 @@ export const Graph = () => {
        * this stops clicking from wiggling the graph.
        * @todo is there a proper API for this?
        */
-      setTimeout(() => {
-        instance.cooldownTicks(0)
-      }, 5000)
+      // setTimeout(() => {
+      //   instance.cooldownTicks(0)
+      // }, 5000)
     }
 
     // size to container via ResizeObserver
