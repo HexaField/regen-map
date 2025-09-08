@@ -13,10 +13,9 @@ const fetchSheet = async (range: string) => {
   const rows = values.slice(1) as string[][] // remaining rows are the data
 
   const result = rows.map((row) => {
-    const entry = {} as Record<string, string | string[]>
+    const entry = {} as Record<string, string>
     headers.forEach((header, i) => {
-      const rowArray = row[i]?.includes(',') ? row[i].split(',').map((item) => item.trim()) : row[i]
-      entry[header] = rowArray
+      entry[header] = row[i]
     })
     return entry
   })

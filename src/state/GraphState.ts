@@ -1,5 +1,6 @@
 import { createSimpleStore } from '@hexafield/simple-store/react'
 import { NodeObject } from '3d-force-graph'
+import { Mesh } from 'three'
 
 import { SelectedProfileState } from './ProfileState'
 
@@ -7,9 +8,9 @@ export type Entity = {
   predicate: string
   name: string
   primary_url: string
-  description: string[] | string
-  images: string[] | string
-  urls: string[] | string
+  description: string
+  images: string
+  urls: string
   country_name: string
   geolocation?: string
 }
@@ -18,7 +19,7 @@ export type Relationship = {
   subject_url: string
   object_url: string
   predicate_url: string
-  meta: string[] | string
+  meta: string
 }
 
 export type Node = Entity & {
@@ -26,13 +27,16 @@ export type Node = Entity & {
   type: 'person' | 'project' | 'organization'
 }
 
-export type NodeRuntime = Node & NodeObject
+export type NodeRuntime = Node &
+  NodeObject & {
+    __threeObj?: Mesh
+  }
 
 export type Link = {
   source: string
   target: string
   type: string
-  meta: string[] | string
+  meta: string
 }
 
 export type LinkRuntime = Omit<Link, 'source' | 'target'> & {
@@ -82,11 +86,11 @@ export const setFocusedNode = (focusedNode: NodeRuntime) => {
   SelectedProfileState.set({
     id: focusedNode.id,
     name: focusedNode.name,
-    title: Array.isArray(focusedNode.description) ? focusedNode.description.join(',') : focusedNode.description,
+    title: focusedNode.description,
     image: Array.isArray(focusedNode.images) ? focusedNode.images[0] : focusedNode.images,
     location: focusedNode.country_name,
     links: focusedNode.urls
-      ? (Array.isArray(focusedNode.urls) ? focusedNode.urls : [focusedNode.urls]).map((url) => ({
+      ? focusedNode.urls.split(',').map((url) => ({
           label: url,
           href: url
         }))

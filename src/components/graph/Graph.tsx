@@ -1,7 +1,18 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import ForceGraph3D, { type ForceGraph3DInstance } from '3d-force-graph'
 import React, { useCallback, useEffect, useRef } from 'react'
-import { Color, DoubleSide, Group, Mesh, ShaderMaterial, SphereGeometry } from 'three'
+import {
+  Color,
+  DoubleSide,
+  Group,
+  Mesh,
+  Object3D,
+  OrthographicCamera,
+  PerspectiveCamera,
+  ShaderMaterial,
+  SphereGeometry,
+  Sprite
+} from 'three'
 import SpriteText from 'three-spritetext'
 
 import { CommunityCardsState } from '../../state/CommunityCardsState'
@@ -20,6 +31,12 @@ import {
 } from '../../state/GraphState'
 import { SelectedProfileState } from '../../state/ProfileState'
 import { dataSourceFetchers } from './dataSources'
+
+declare module 'three' {
+  interface Object3D {
+    __origRaycast?: (this: Object3D, ...args: any[]) => any
+  }
+}
 
 const getLinkKey = (link: Link | LinkRuntime) =>
   `${typeof link.source === 'string' ? link.source : link.source.id}-${link.type}-${typeof link.target === 'string' ? link.target : link.target.id}`
@@ -70,7 +87,7 @@ const mergeNodes = (prevData: GraphDataRuntimeType, rawData: GraphDataType) => {
   }
 
   // add new nodes and links
-  prevData.nodes.push(...newNodesData)
+  prevData.nodes.push(...(newNodesData as NodeRuntime[]))
 
   for (const link of rawData.links as Link[]) {
     // remap link endpoints to canonical nodes by name
@@ -152,6 +169,46 @@ export const Graph = () => {
   const [profile, setProfile] = useSimpleStore(SelectedProfileState)
   // filters already declared above
 
+  const updateOrgSpheres = useCallback(() => {
+    if (!fgRef.current) return
+    const showSpheres = GraphFilterState.get().organizationSpheres
+    const current = GraphState.get()
+    // Build membership index: target org id -> member node ids
+    const membersByOrg = new Map<string, NodeRuntime[]>()
+    for (const l of current.links) {
+      if (l.type === 'memberOf') {
+        const org = l.target
+        const member = l.source
+        if (!membersByOrg.has(org.id)) membersByOrg.set(org.id, [])
+        membersByOrg.get(org.id)!.push(member)
+      }
+    }
+    for (const [orgId, mesh] of orgSphereMap.current.entries()) {
+      const orgNode = current.nodes.find((n) => n.id === orgId)
+      if (!orgNode) {
+        mesh.visible = false
+        continue
+      }
+      const members = membersByOrg.get(orgId) || []
+      // Compute max distance from org to its members
+      let maxR = 0
+      for (const m of members) {
+        const dx = (m.x || 0) - (orgNode.x || 0)
+        const dy = (m.y || 0) - (orgNode.y || 0)
+        const dz = (m.z || 0) - (orgNode.z || 0)
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        if (d > maxR) maxR = d
+      }
+      // margin so nodes are inside
+      const margin = members.length ? 10 : 0
+      const radius = Math.max(18, maxR + margin)
+      mesh.scale.set(radius, radius, radius)
+      // Ensure the sphere is centered on the org node
+      mesh.position.set(0, 0, 0) // group is anchored to node position
+      mesh.visible = showSpheres && members.length > 0
+    }
+  }, [fgRef.current])
+
   // watch enabled community datasets and merge their graphs together
   const [cards] = useSimpleStore(CommunityCardsState)
   useEffect(() => {
@@ -218,7 +275,10 @@ export const Graph = () => {
   useEffect(() => {
     if (!containerRef.current) return
     if (!fgRef.current) {
-      const instance = new ForceGraph3D(containerRef.current!) as any as ForceGraph3DInstance<NodeRuntime, LinkRuntime>
+      const instance = new ForceGraph3D(containerRef.current!) as unknown as ForceGraph3DInstance<
+        NodeRuntime,
+        LinkRuntime
+      >
       fgRef.current = instance
 
       // basic styling & behavior
@@ -242,8 +302,7 @@ export const Graph = () => {
       // Direction cones to indicate source -> target
       instance.linkDirectionalArrowLength((link) => {
         const spheresOn = GraphFilterState.get().organizationSpheres
-        const touchesOrg =
-          (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
+        const touchesOrg = link.source?.type === 'organization' || link.target?.type === 'organization'
         if (spheresOn && touchesOrg) return 0
         return isProposed(link) ? 3 : 6
       })
@@ -257,7 +316,7 @@ export const Graph = () => {
       instance.nodeThreeObject((node: Node) => {
         const group = new Group()
         // Label
-        const label: any = new SpriteText(node.name || '')
+        const label = new SpriteText(node.name || '')
         label.textHeight = labelSizeRef.current
         if (document.documentElement.classList.contains('dark')) {
           label.color = '#fff'
@@ -328,7 +387,7 @@ export const Graph = () => {
           sphere.visible = false
           // Make sphere non-pickable so clicks go through only to label
           // eslint-disable-next-line @typescript-eslint/no-empty-function
-          ;(sphere as any).raycast = () => {}
+          sphere.raycast = () => {}
           try {
             sphere.userData = sphere.userData || {}
             sphere.userData.__isOrgSphere = true
@@ -371,8 +430,7 @@ export const Graph = () => {
         const baseLinkColor = (link: LinkRuntime) => {
           // Invisible if spheres mode is on and link touches an organization
           const spheresOn = GraphFilterState.get().organizationSpheres
-          const touchesOrg =
-            (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
+          const touchesOrg = link.source?.type === 'organization' || link.target?.type === 'organization'
           if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
           if (isProposed(link)) return '#9ca3af'
           switch (link.type) {
@@ -457,53 +515,10 @@ export const Graph = () => {
 
       instance.enableNodeDrag(false)
 
-      const updateOrgSpheres = () => {
-        if (!fgRef.current) return
-        const showSpheres = GraphFilterState.get().organizationSpheres
-        const current = GraphState.get()
-        // Build membership index: target org id -> member node ids
-        const membersByOrg = new Map<string, NodeRuntime[]>()
-        for (const l of current.links) {
-          if (l.type === 'memberOf') {
-            const org = l.target
-            const member = l.source
-            if (!membersByOrg.has(org.id)) membersByOrg.set(org.id, [])
-            membersByOrg.get(org.id)!.push(member)
-          }
-        }
-        for (const [orgId, mesh] of orgSphereMap.current.entries()) {
-          const orgNode = current.nodes.find((n) => n.id === orgId)
-          if (!orgNode) {
-            mesh.visible = false
-            continue
-          }
-          const members = membersByOrg.get(orgId) || []
-          // Compute max distance from org to its members
-          let maxR = 0
-          for (const m of members) {
-            const dx = (m.x || 0) - (orgNode.x || 0)
-            const dy = (m.y || 0) - (orgNode.y || 0)
-            const dz = (m.z || 0) - (orgNode.z || 0)
-            const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
-            if (d > maxR) maxR = d
-          }
-          // margin so nodes are inside
-          const margin = members.length ? 10 : 0
-          const radius = Math.max(18, maxR + margin)
-          mesh.scale.set(radius, radius, radius)
-          // Ensure the sphere is centered on the org node
-          mesh.position.set(0, 0, 0) // group is anchored to node position
-          mesh.visible = showSpheres && members.length > 0
-        }
-      }
-
       // Update org spheres sizing each engine tick
       instance.onEngineTick(() => {
         updateOrgSpheres()
       })
-
-      // Expose helper on instance for external calls
-      ;(instance as any).__updateOrgSpheres = updateOrgSpheres
 
       /**
        * this stops clicking from wiggling the graph.
@@ -553,7 +568,7 @@ export const Graph = () => {
       }
       // Re-apply focus fade visuals to adjust faded shade for theme
       try {
-        const prevData: any = (fgRef.current as any).graphData?.()
+        const prevData = fgRef.current.graphData?.()
         if (prevData) fgRef.current.graphData(prevData)
       } catch {}
     }
@@ -561,8 +576,8 @@ export const Graph = () => {
     const handler = (e: any) => applySceneTheme(!!e?.detail?.isDark)
     // Apply immediately on mount using current class
     applySceneTheme(document.documentElement.classList.contains('dark'))
-    window.addEventListener('themechange', handler as any)
-    return () => window.removeEventListener('themechange', handler as any)
+    window.addEventListener('themechange', handler)
+    return () => window.removeEventListener('themechange', handler)
   }, [])
 
   // Apply focus-fade visuals to labels and org spheres when focus/toggle/theme changes
@@ -608,30 +623,30 @@ export const Graph = () => {
     // Update org spheres
     for (const [id, mesh] of orgSphereMap.current.entries()) {
       const mat = mesh.material as ShaderMaterial | undefined
-      if (!mat || !(mat as any).uniforms) continue
+      if (!mat || !mat.uniforms) continue
       const lit = !fade || !focused ? true : id === focused.id || neighbors.has(id)
       const color = new Color(lit ? 'springgreen' : isDark ? '#4b5563' : '#9ca3af') // neutral-600/400
       try {
-        ;(mat.uniforms as any).uColor.value = color
-        ;(mat.uniforms as any).uOpacity.value = lit ? 0.6 : 0.2
+        mat.uniforms.uColor.value = color
+        mat.uniforms.uOpacity.value = lit ? 0.6 : 0.2
         mat.needsUpdate = true
       } catch {}
     }
 
     // Update default node meshes' opacity (skip org spheres and labels)
     try {
-      const current: any = (fgRef.current as any).graphData?.()
-      const nodes: any[] = current?.nodes || []
+      const current = fgRef.current.graphData?.()
+      const nodes = current?.nodes || []
       for (const n of nodes) {
-        const rootObj: any = (n as any).__threeObj
+        const rootObj = n.__threeObj
         if (!rootObj) continue
         const lit = !fade || !focused ? true : n.id === focused.id || neighbors.has(n.id)
-        rootObj.traverse?.((obj: any) => {
+        rootObj.traverse((obj: Object3D | Mesh | Sprite) => {
           if (obj?.type !== 'Mesh') return
           if (obj?.userData?.__isOrgSphere) return
           // Skip SpriteText labels (type 'Sprite')
-          if (obj?.isSprite) return
-          const mat = obj.material
+          if ('isSprite' in obj) return
+          const mat = (obj as any).material
           if (!mat) return
           try {
             mat.transparent = true
@@ -644,7 +659,7 @@ export const Graph = () => {
 
     // Trigger a graph refresh so dynamic color functions re-evaluate
     try {
-      const prevData: any = (fgRef.current as any).graphData?.()
+      const prevData = fgRef.current.graphData()
       if (prevData) fgRef.current.graphData(prevData)
     } catch {}
   }, [focusedNode, GraphFilterState.get().focusFade, GraphFilterState.get().organizationSpheres])
@@ -660,11 +675,10 @@ export const Graph = () => {
     const sphere = orgSphereMap.current.get(node.id)
     if (spheresOn && node.type === 'organization' && sphere) {
       // Ensure sphere is up-to-date
-      const updater = (fgRef.current as any).__updateOrgSpheres
-      if (updater) updater()
+      updateOrgSpheres()
 
-      const cam: any = (fgRef.current as any).camera?.()
-      const fov = cam?.fov ? (cam.fov * Math.PI) / 180 : (75 * Math.PI) / 180
+      const cam = fgRef.current.camera() as PerspectiveCamera | OrthographicCamera
+      const fov = 'fov' in cam ? (cam.fov * Math.PI) / 180 : (75 * Math.PI) / 180
       const radius = sphere.scale?.x || 20
       const padding = 1.15
       const minDist = (radius * padding) / Math.tan(fov / 2)
@@ -736,7 +750,7 @@ export const Graph = () => {
       return isTypeVisible(n.type)
     })
     const nodeIdSet = new Set(filteredNodes.map((n) => n.id))
-    const isProposed = (meta: any) => {
+    const isProposed = (meta: string) => {
       if (!meta) return false
       if (Array.isArray(meta)) return meta.some((s) => (s || '').toLowerCase().includes('proposed'))
       return (meta || '').toLowerCase().includes('proposed')
@@ -752,19 +766,18 @@ export const Graph = () => {
       return true
     })
 
-    fgRef.current.graphData({ nodes: filteredNodes as any, links: filteredLinks as any })
+    fgRef.current.graphData({ nodes: filteredNodes, links: filteredLinks })
     // Trigger sphere resize/visibility update now (not just on ticks)
-    const updater = (fgRef.current as any).__updateOrgSpheres
-    if (updater) updater()
+    updateOrgSpheres()
     // Ensure org default meshes are not pickable when spheres mode is on (labels remain clickable)
     try {
       const spheresOn = GraphFilterState.get().organizationSpheres
       if (spheresOn) {
         for (const n of filteredNodes) {
           if (n.type !== 'organization') continue
-          const rootObj: any = (n as any).__threeObj
+          const rootObj = n.__threeObj
           if (!rootObj) continue
-          rootObj.traverse?.((obj: any) => {
+          rootObj.traverse?.((obj) => {
             if (obj?.type === 'Mesh' && !obj?.userData?.__isOrgSphere) {
               if (!obj.__origRaycast && typeof obj.raycast === 'function') {
                 obj.__origRaycast = obj.raycast
@@ -797,24 +810,24 @@ export const Graph = () => {
     }
 
     // Bump memberOf link strength slightly when spheres are on
-    const linkForce: any = (fgRef.current as any).d3Force?.('link')
+    const linkForce = fgRef.current.d3Force?.('link')
     if (linkForce && typeof linkForce.strength === 'function') {
       linkForce.strength(0.5)
     }
 
     // Force color recalculation to apply invisibility
-    const prevData: any = (fgRef.current as any).graphData?.()
+    const prevData = fgRef.current.graphData?.()
     if (prevData) fgRef.current.graphData(prevData)
 
     // Toggle org node default mesh pickability: when spheres are on, only labels should be clickable
     try {
-      const current: any = (fgRef.current as any).graphData?.()
-      const nodes: any[] = current?.nodes || []
+      const current = fgRef.current.graphData?.()
+      const nodes = current?.nodes || []
       for (const n of nodes) {
         if (n.type !== 'organization') continue
-        const rootObj: any = (n as any).__threeObj
+        const rootObj = n.__threeObj
         if (!rootObj) continue
-        rootObj.traverse?.((obj: any) => {
+        rootObj.traverse?.((obj) => {
           if (obj?.type !== 'Mesh') return
           const isOrgSphere = !!obj?.userData?.__isOrgSphere
           if (isOrgSphere) return // sphere already non-pickable

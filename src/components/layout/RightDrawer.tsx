@@ -1,5 +1,5 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 
 import placeholder from '../../assets/placeholder-avatar.webp'
 import rectangleImg from '../../assets/placeholder-background.png'
