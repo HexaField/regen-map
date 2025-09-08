@@ -94,7 +94,14 @@ export const setFocusedNode = (focusedNode: NodeRuntime) => {
     links: (() => {
       const primaryUrl = focusedNode.primary_url
       const urls = focusedNode.urls?.split(',') ?? []
-      const arr = Array.from(new Set([primaryUrl, ...urls].map((l) => l.trim()).filter(Boolean)))
+      const arr = Array.from(
+        new Set(
+          [primaryUrl, ...urls]
+            .filter(Boolean)
+            .map((l) => l.trim())
+            .filter(Boolean)
+        )
+      )
       return arr.map((url) => ({ label: url, href: url }))
     })(),
     tags: [],
