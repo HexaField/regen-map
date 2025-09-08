@@ -431,6 +431,9 @@ export const Graph = () => {
 
         fgRef.current.linkColor((link) => {
           const c = baseLinkColor(link as LinkRuntime)
+          const orgSpheres = GraphFilterState.get().organizationSpheres
+          if (orgSpheres && (link.source.type === 'organization' || link.target.type === 'organization'))
+            return 'rgba(0,0,0,0.001)'
           if (!GraphFilterState.get().focusFade) return c
           if (isLitLink(link as LinkRuntime)) return c
           return getFadeShades().link
@@ -442,14 +445,6 @@ export const Graph = () => {
           if (isLitLink(link as LinkRuntime)) return c
           return getFadeShades().arrow
         })
-
-        // Also dim link opacity when faded
-        try {
-          ;(fgRef.current as any).linkOpacity((link: any) => {
-            if (!GraphFilterState.get().focusFade) return 0.3
-            return isLitLink(link as LinkRuntime) ? 0.3 : 0.12
-          })
-        } catch {}
       }
 
       applyDynamicColors()
