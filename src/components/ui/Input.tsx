@@ -6,7 +6,9 @@ export function Input({ className = '', iconLeft, iconRight, ...props }: Props) 
   return (
     <div className={['relative', className].join(' ')}>
       {iconLeft ? (
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500">{iconLeft}</div>
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500">
+          {iconLeft}
+        </div>
       ) : null}
       <input
         className={[
@@ -17,7 +19,9 @@ export function Input({ className = '', iconLeft, iconRight, ...props }: Props) 
         {...props}
       />
       {iconRight ? (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500">{iconRight}</div>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500">
+          {iconRight}
+        </div>
       ) : null}
     </div>
   )

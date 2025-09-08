@@ -11,7 +11,7 @@
         try {
           const ls = localStorage.getItem('theme') // 'light' | 'dark' | 'system'
           const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-          const wantDark = ls === 'dark' || (!ls || ls === 'system') && systemPrefersDark
+          const wantDark = ls === 'dark' || ((!ls || ls === 'system') && systemPrefersDark)
           const root = document.documentElement
           if (wantDark) root.classList.add('dark')
           else root.classList.remove('dark')

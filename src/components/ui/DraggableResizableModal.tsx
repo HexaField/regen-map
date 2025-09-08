@@ -97,9 +97,9 @@ export function DraggableResizableModal({
     <div
       ref={containerRef}
       className={[
-  'fixed z-40 rounded-xl backdrop-blur border shadow-lg select-none',
-  'bg-white/90 border-neutral-200',
-  'dark:bg-neutral-900/80 dark:border-neutral-700',
+        'fixed z-40 rounded-xl backdrop-blur border shadow-lg select-none',
+        'bg-white/90 border-neutral-200',
+        'dark:bg-neutral-900/80 dark:border-neutral-700',
         'will-change-transform',
         isMobile ? 'inset-3' : '',
         className
