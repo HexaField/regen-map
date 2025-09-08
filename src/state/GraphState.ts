@@ -106,11 +106,7 @@ export const setFocusedNode = (focusedNode: NodeRuntime) => {
       }
     })
   })
-  // Add/Move focused node to end of the focused list (dedup by id)
-  const current = FocusedNodeState.get()
-  const idx = current.findIndex((n) => n.id === focusedNode.id)
-  const next = idx >= 0 ? [...current.slice(0, idx), ...current.slice(idx + 1), focusedNode] : [...current, focusedNode]
-  FocusedNodeState.set(next)
+  FocusedNodeState.set([focusedNode])
 }
 
 export const closeFocusedNode = () => {
