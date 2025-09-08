@@ -9,6 +9,7 @@ import { SearchQueryState } from '../../state/SearchState'
 import { ViewMode, ViewModeState } from '../../state/ViewModeState'
 import { applyTheme, getTheme, ThemeMode } from '../../theme'
 import { Button } from '../ui/Button'
+import { GitHubIcon } from '../ui/GitHubIcon'
 import { Input } from '../ui/Input'
 import { Segmented } from '../ui/Segmented'
 import { Tabs } from '../ui/Tabs'
@@ -68,7 +69,7 @@ export function TopControls() {
       </div> */}
 
       {/* Right search and node info button (hidden on mobile; shown from sm+) */}
-      <div className="z-30 right-6 hidden sm:flex items-center gap-3">
+      <div className="z-30 hidden sm:flex items-center gap-3">
         <Input
           placeholder="Search"
           value={query}
@@ -97,6 +98,19 @@ export function TopControls() {
         >
           Node Information
         </Button>
+      </div>
+
+      {/* GitHub icon all the way on the right (hidden on mobile; shown from sm+) */}
+      <div className="z-30 hidden sm:flex">
+        <a
+          href="https://github.com/HexaField/regen-map"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          aria-label="View on GitHub"
+        >
+          <GitHubIcon size={20} />
+        </a>
       </div>
     </div>
   )

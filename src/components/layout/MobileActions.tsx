@@ -4,6 +4,7 @@ import { closeGraphConfigModal, toggleGraphConfigModal } from '../../state/Graph
 import { closeFocusedNode } from '../../state/GraphState'
 import { closeLeftDock, toggleLeftDock } from '../../state/LeftDockState'
 import { Button } from '../ui/Button'
+import { GitHubIcon } from '../ui/GitHubIcon'
 
 export function MobileActions() {
   const [open, setOpen] = useState(false)
@@ -40,6 +41,19 @@ export function MobileActions() {
 
   return (
     <div className="sm:hidden">
+      {/* GitHub link in bottom left corner for mobile */}
+      <div className="fixed bottom-4 left-4 z-40">
+        <a
+          href="https://github.com/HexaField/regen-map"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center w-12 h-12 bg-white/95 dark:bg-neutral-800/95 backdrop-blur rounded-full shadow-lg hover:shadow-xl transition-shadow border border-neutral-200 dark:border-neutral-700"
+          aria-label="View on GitHub"
+        >
+          <GitHubIcon size={20} className="text-neutral-700 dark:text-neutral-300" />
+        </a>
+      </div>
+
       {/* Toggle button (FAB) */}
       <div className="fixed top-4 right-4 z-40">
         <Button
