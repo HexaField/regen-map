@@ -9,8 +9,8 @@ export type Entity = {
   name: string
   primary_url: string
   description: string
-  images: string | string[]
-  urls: string | string[]
+  images: string
+  urls: string
   country_name: string
   geolocation?: string
 }
@@ -92,9 +92,9 @@ export const setFocusedNode = (focusedNode: NodeRuntime) => {
     image: Array.isArray(focusedNode.images) ? focusedNode.images[0] : focusedNode.images,
     location: focusedNode.country_name,
     links: (() => {
-      const urls = focusedNode.urls
-      if (!urls) return []
-      const arr = Array.isArray(urls) ? urls : urls.split(',')
+      const primaryUrl = focusedNode.primary_url
+      const urls = focusedNode.urls?.split(',') ?? []
+      const arr = Array.from(new Set([primaryUrl, ...urls].map((l) => l.trim()).filter(Boolean)))
       return arr.map((url) => ({ label: url, href: url }))
     })(),
     tags: [],

@@ -1,5 +1,5 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
-import React, { useEffect, useMemo } from 'react'
+import React from 'react'
 
 import placeholder from '../../assets/placeholder-avatar.webp'
 import rectangleImg from '../../assets/placeholder-background.png'
@@ -65,7 +65,11 @@ export function RightDrawer() {
             <CardContent>
               <div className="flex flex-wrap gap-2">
                 {profile?.links.map((l, i) => (
-                  <Chip key={i}>{l.label}</Chip>
+                  <Chip key={i}>
+                    <a href={l.href} target="_blank">
+                      {l.label}
+                    </a>
+                  </Chip>
                 ))}
               </div>
             </CardContent>
