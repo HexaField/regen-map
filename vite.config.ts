@@ -10,7 +10,7 @@ import dotenv from 'dotenv'
 import { defineConfig } from 'vite'
 
 dotenv.config({
-  path: packageRoot.path + '/.env.local'
+  path: packageRoot.path + '/.env'
 })
 
 export default defineConfig(({ command }) => {
