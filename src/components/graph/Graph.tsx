@@ -509,6 +509,14 @@ export const Graph = () => {
 
       // Expose helper on instance for external calls
       ;(instance as any).__updateOrgSpheres = updateOrgSpheres
+
+      /**
+       * this stops clicking from wiggling the graph.
+       * @todo is there a proper API for this?
+       */
+      setTimeout(() => {
+        instance.cooldownTicks(0)
+      }, 5000)
     }
 
     // size to container via ResizeObserver
