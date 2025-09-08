@@ -165,7 +165,7 @@ export const Graph = () => {
   const labelMap = useRef<Map<string, any>>(new Map())
   const isDarkRef = useRef<boolean>(document.documentElement.classList.contains('dark'))
 
-  const [focusedNode] = useSimpleStore(FocusedNodeState)
+  const [focusedNodes] = useSimpleStore(FocusedNodeState)
   const [profile, setProfile] = useSimpleStore(SelectedProfileState)
   // filters already declared above
 
@@ -460,24 +460,26 @@ export const Graph = () => {
 
         const isLitNode = (node: NodeRuntime) => {
           const fade = GraphFilterState.get().focusFade
-          const focused = FocusedNodeState.get()
-          if (!fade || !focused) return true
-          if (node.id === focused.id) return true
-          // neighbor if directly connected to focused via any link
+          const focusedArr = FocusedNodeState.get()
+          if (!fade || !focusedArr.length) return true
+          const focusIds = new Set(focusedArr.map((f) => f.id))
+          if (focusIds.has(node.id)) return true
+          // neighbor if directly connected to any focused via any link
           const neighbors = new Set<string>()
           for (const l of GraphState.get().links) {
-            if (l.source.id === focused.id) neighbors.add(l.target.id)
-            if (l.target.id === focused.id) neighbors.add(l.source.id)
+            if (focusIds.has(l.source.id)) neighbors.add(l.target.id)
+            if (focusIds.has(l.target.id)) neighbors.add(l.source.id)
           }
           return neighbors.has(node.id)
         }
 
         const isLitLink = (link: LinkRuntime) => {
           const fade = GraphFilterState.get().focusFade
-          const focused = FocusedNodeState.get()
-          if (!fade || !focused) return true
-          // Only keep links lit that connect to the focused node
-          return link.source.id === focused.id || link.target.id === focused.id
+          const focusedArr = FocusedNodeState.get()
+          if (!fade || !focusedArr.length) return true
+          // Only keep links lit that connect to any focused node
+          const focusIds = new Set(focusedArr.map((f) => f.id))
+          return focusIds.has(link.source.id) || focusIds.has(link.target.id)
         }
 
         fgRef.current.nodeColor((node) => {
@@ -583,17 +585,18 @@ export const Graph = () => {
   // Apply focus-fade visuals to labels and org spheres when focus/toggle/theme changes
   useEffect(() => {
     if (!fgRef.current) return
-    const focused = focusedNode
+    const focusedArr = focusedNodes
     const fade = GraphFilterState.get().focusFade
     const isDark = isDarkRef.current
     const fadedTextColor = isDark ? '#6b7280' : '#9ca3af' // neutral-500 vs neutral-400
     const fadedBg = isDark ? 'rgba(31,41,55,0.5)' : 'rgba(243,244,246,0.6)' // neutral-800 vs neutral-100
 
     const neighbors = new Set<string>()
-    if (focused && fade) {
+    const focusIds = new Set((focusedArr || []).map((f) => f.id))
+    if (focusedArr.length && fade) {
       for (const l of GraphState.get().links) {
-        if (l.source.id === focused.id) neighbors.add(l.target.id)
-        if (l.target.id === focused.id) neighbors.add(l.source.id)
+        if (focusIds.has(l.source.id)) neighbors.add(l.target.id)
+        if (focusIds.has(l.target.id)) neighbors.add(l.source.id)
       }
     }
 
@@ -601,7 +604,7 @@ export const Graph = () => {
     for (const [id, label] of labelMap.current.entries()) {
       const node = GraphState.get().nodes.find((n) => n.id === id)
       if (!node || !label || !label.material) continue
-      const lit = !fade || !focused ? true : id === focused.id || neighbors.has(id)
+      const lit = !fade || !focusedArr.length ? true : focusIds.has(id) || neighbors.has(id)
       // Ensure transparency enabled
       try {
         label.material.transparent = true
@@ -624,7 +627,7 @@ export const Graph = () => {
     for (const [id, mesh] of orgSphereMap.current.entries()) {
       const mat = mesh.material as ShaderMaterial | undefined
       if (!mat || !mat.uniforms) continue
-      const lit = !fade || !focused ? true : id === focused.id || neighbors.has(id)
+      const lit = !fade || !focusedArr.length ? true : focusIds.has(id) || neighbors.has(id)
       const color = new Color(lit ? 'springgreen' : isDark ? '#4b5563' : '#9ca3af') // neutral-600/400
       try {
         mat.uniforms.uColor.value = color
@@ -640,7 +643,7 @@ export const Graph = () => {
       for (const n of nodes) {
         const rootObj = n.__threeObj
         if (!rootObj) continue
-        const lit = !fade || !focused ? true : n.id === focused.id || neighbors.has(n.id)
+        const lit = !fade || !focusedArr.length ? true : focusIds.has(n.id) || neighbors.has(n.id)
         rootObj.traverse((obj: Object3D | Mesh | Sprite) => {
           if (obj?.type !== 'Mesh') return
           if (obj?.userData?.__isOrgSphere) return
@@ -662,12 +665,13 @@ export const Graph = () => {
       const prevData = fgRef.current.graphData()
       if (prevData) fgRef.current.graphData(prevData)
     } catch {}
-  }, [focusedNode, GraphFilterState.get().focusFade, GraphFilterState.get().organizationSpheres])
+  }, [focusedNodes, GraphFilterState.get().focusFade, GraphFilterState.get().organizationSpheres])
 
   useEffect(() => {
-    if (!focusedNode || !fgRef.current) return
+    if (!focusedNodes.length || !fgRef.current) return
 
-    const node = focusedNode
+    // Use the last focused node as the primary camera target
+    const node = focusedNodes[focusedNodes.length - 1]
     const lookAt = { x: node?.x || 0, y: node?.y || 0, z: node?.z || 0 }
 
     // If focusing an organization with spheres enabled, fit the sphere in view
@@ -708,11 +712,13 @@ export const Graph = () => {
       lookAt,
       800
     )
-  }, [focusedNode, GraphFilterState.get().organizationSpheres])
+  }, [focusedNodes, GraphFilterState.get().organizationSpheres])
 
   useEffect(() => {
-    if (!profile?.id || profile.id === focusedNode?.id) return
-    setFocusedNode(data.nodes.find((n) => n.id === profile.id)!)
+    const lastFocusedId = focusedNodes[focusedNodes.length - 1]?.id
+    if (!profile?.id || profile.id === lastFocusedId) return
+    const found = data.nodes.find((n) => n.id === profile.id)
+    if (found) setFocusedNode(found)
   }, [profile?.id])
 
   const focus = useCallback(() => {

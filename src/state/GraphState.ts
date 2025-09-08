@@ -9,8 +9,8 @@ export type Entity = {
   name: string
   primary_url: string
   description: string
-  images: string
-  urls: string
+  images: string | string[]
+  urls: string | string[]
   country_name: string
   geolocation?: string
 }
@@ -68,7 +68,9 @@ export const GraphState = createSimpleStore<GraphDataRuntimeType>({
   links: []
 })
 
-export const FocusedNodeState = createSimpleStore<NodeRuntime | null>(null)
+export const FocusedNodeState: ReturnType<typeof createSimpleStore<NodeRuntime[]>> = createSimpleStore<NodeRuntime[]>(
+  []
+)
 
 export const setFocusedNode = (focusedNode: NodeRuntime) => {
   const data = GraphState.get()
@@ -89,12 +91,12 @@ export const setFocusedNode = (focusedNode: NodeRuntime) => {
     title: focusedNode.description,
     image: Array.isArray(focusedNode.images) ? focusedNode.images[0] : focusedNode.images,
     location: focusedNode.country_name,
-    links: focusedNode.urls
-      ? focusedNode.urls.split(',').map((url) => ({
-          label: url,
-          href: url
-        }))
-      : [],
+    links: (() => {
+      const urls = focusedNode.urls
+      if (!urls) return []
+      const arr = Array.isArray(urls) ? urls : urls.split(',')
+      return arr.map((url) => ({ label: url, href: url }))
+    })(),
     tags: [],
     relationships: links.map((link) => {
       const target = link.target.id === focusedNode.id ? link.source : link.target
@@ -104,9 +106,13 @@ export const setFocusedNode = (focusedNode: NodeRuntime) => {
       }
     })
   })
-  FocusedNodeState.set(focusedNode)
+  // Add/Move focused node to end of the focused list (dedup by id)
+  const current = FocusedNodeState.get()
+  const idx = current.findIndex((n) => n.id === focusedNode.id)
+  const next = idx >= 0 ? [...current.slice(0, idx), ...current.slice(idx + 1), focusedNode] : [...current, focusedNode]
+  FocusedNodeState.set(next)
 }
 
 export const closeFocusedNode = () => {
-  FocusedNodeState.set(null)
+  FocusedNodeState.set([])
 }

@@ -7,7 +7,10 @@ import { DraggableResizableModal } from '../ui/DraggableResizableModal'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-  <div className="min-h-screen bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100" id="app-shell">
+    <div
+      className="min-h-screen bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100"
+      id="app-shell"
+    >
       {/* Top nav */}
       {/* <div className="bg-white dark:bg-neutral-900 inset-x-0 top-0 z-40 h-14 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
@@ -25,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </a>
         </div>
       </div> */}
-  <div className="">{children}</div>
+      <div className="">{children}</div>
     </div>
   )
 }
@@ -59,7 +62,7 @@ export function LeftDock({ children }: { children: React.ReactNode }) {
 
 export function RightDock({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useSimpleStore(FocusedNodeState)
-  if (!open) return null
+  if (!open.length) return null
   // Compute a sensible initial X so the panel starts near the right edge
   const initialWidth = 360
   const margin = 24
@@ -73,7 +76,7 @@ export function RightDock({ children }: { children: React.ReactNode }) {
       initialY={112}
       minWidth={320}
       minHeight={260}
-      onClose={() => setOpen(null)}
+      onClose={() => setOpen([])}
     >
       {children}
     </DraggableResizableModal>

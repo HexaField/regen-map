@@ -17,7 +17,7 @@ export function RightDrawer() {
     <div
       className={[
         'pointer-events-auto transition-all',
-        open ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
+        open.length ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
       ].join(' ')}
     >
       <div className="w-full min-w-[320px] space-y-3">
@@ -35,7 +35,7 @@ export function RightDrawer() {
                 <div className="text-[16px] font-semibold">{profile?.name}</div>
                 <div className="text-[12px] text-neutral-500 max-w-[260px]">{profile?.title}</div>
               </div>
-              <Button variant="ghost" className="rounded-full text-[12px] h-8 px-3" onClick={() => setOpen(null)}>
+              <Button variant="ghost" className="rounded-full text-[12px] h-8 px-3" onClick={() => setOpen([])}>
                 Close
               </Button>
             </div>
