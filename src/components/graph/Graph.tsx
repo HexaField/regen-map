@@ -875,7 +875,12 @@ export const Graph = () => {
     // Bump memberOf link strength slightly when spheres are on
     const linkForce = fgRef.current.d3Force?.('link')
     if (linkForce && typeof linkForce.strength === 'function') {
-      linkForce.strength(0.5)
+      linkForce.strength((link: LinkRuntime) => {
+        if (link.target.type === 'organization' || link.source.type === 'organization') {
+          return 1
+        }
+        return 0.4
+      })
     }
 
     // Force color recalculation to apply invisibility
