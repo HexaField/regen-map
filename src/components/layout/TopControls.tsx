@@ -3,7 +3,7 @@ import React from 'react'
 
 import { AppTab, AppTabState } from '../../state/AppTabsState'
 import { toggleGraphConfigModal } from '../../state/GraphConfigModalState'
-import { closeFocusedNode, FocusedNodeState } from '../../state/GraphState'
+import { closeFocusedNode, FocusedNodeState, GraphState } from '../../state/GraphState'
 import { LeftDockOpenState, openLeftDock, toggleLeftDock } from '../../state/LeftDockState'
 import { SearchQueryState } from '../../state/SearchState'
 import { ViewMode, ViewModeState } from '../../state/ViewModeState'
@@ -18,7 +18,7 @@ export function TopControls() {
   const [mode, setMode] = useSimpleStore(ViewModeState)
   const [query, setQuery] = useSimpleStore(SearchQueryState)
   const [leftOpen] = useSimpleStore(LeftDockOpenState)
-  const [focusedNode] = useSimpleStore(FocusedNodeState)
+  const [focusedNodes, setFocusedNodes] = useSimpleStore(FocusedNodeState)
   const [theme, setTheme] = React.useState<ThemeMode>(() => (typeof window !== 'undefined' ? getTheme() : 'system'))
 
   const onThemeChange = (mode: ThemeMode) => {
@@ -69,11 +69,32 @@ export function TopControls() {
 
       {/* Right search and node info button (hidden on mobile; shown from sm+) */}
       <div className="z-30 right-6 hidden sm:flex items-center gap-3">
-        <Input placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="w-[260px]" />
+        <Input
+          placeholder="Search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const q = (query || '').trim().toLowerCase()
+              if (!q) {
+                setFocusedNodes([])
+                return
+              }
+              const matches = GraphState.get().nodes.filter((n) => (n.name || '').toLowerCase().includes(q))
+              setFocusedNodes(matches)
+            }
+          }}
+          className="w-[260px]"
+        />
         <Button variant="ghost" className="rounded-full" onClick={toggleGraphConfigModal}>
           Graph Settings
         </Button>
-        <Button variant="ghost" disabled={!focusedNode} className="rounded-full" onClick={() => closeFocusedNode()}>
+        <Button
+          variant="ghost"
+          disabled={!focusedNodes.length}
+          className="rounded-full"
+          onClick={() => closeFocusedNode()}
+        >
           Node Information
         </Button>
       </div>
