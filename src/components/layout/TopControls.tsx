@@ -28,7 +28,7 @@ export function TopControls() {
   }
 
   return (
-    <div className="z-30 p-6 flex flex-row justify-between items-center text-neutral-900 dark:text-neutral-100">
+    <div className="absolute w-full z-30 flex flex-row justify-between items-center bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
       {/* Left tabs */}
       {/* <div className="z-30 left-6 flex items-center gap-3">
         <Tabs
@@ -69,7 +69,7 @@ export function TopControls() {
       </div> */}
 
       {/* Right search and node info button (hidden on mobile; shown from sm+) */}
-      <div className="z-30 hidden sm:flex items-center gap-3">
+      <div className="z-30 hidden p-6 sm:flex items-center gap-3">
         <Input
           placeholder="Search"
           value={query}
@@ -101,7 +101,7 @@ export function TopControls() {
       </div>
 
       {/* GitHub icon all the way on the right (hidden on mobile; shown from sm+) */}
-      <div className="z-30 hidden sm:flex">
+      <div className="z-30 hidden p-6 sm:flex">
         <a
           href="https://github.com/HexaField/regen-map"
           target="_blank"
