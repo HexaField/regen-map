@@ -145,6 +145,7 @@ export const Graph = () => {
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const orgSphereMap = useRef<Map<string, Mesh>>(new Map())
   const labelMap = useRef<Map<string, any>>(new Map())
+  const isDarkRef = useRef<boolean>(document.documentElement.classList.contains('dark'))
 
   const [focusedNode] = useSimpleStore(FocusedNodeState)
   const [profile, setProfile] = useSimpleStore(SelectedProfileState)
@@ -226,12 +227,6 @@ export const Graph = () => {
       instance.showNavInfo(false)
       instance.nodeRelSize(6)
       instance.nodeOpacity(0.9)
-      instance.nodeColor((node) => {
-        if (node.type === 'person') return 'blue'
-        if (node.type === 'project') return 'orange'
-        if (node.type === 'organization') return 'green'
-        return 'gray'
-      })
       instance.linkOpacity(0.3)
       // helper to detect proposed links via meta field
       const isProposed = (link: LinkRuntime) => {
@@ -253,28 +248,7 @@ export const Graph = () => {
       })
       instance.linkDirectionalArrowRelPos(0.6)
       instance.linkDirectionalArrowResolution(8)
-      instance.linkDirectionalArrowColor((link) => {
-        const spheresOn = GraphFilterState.get().organizationSpheres
-        const touchesOrg =
-          (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
-        if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
-        if (isProposed(link)) return '#9ca3af'
-        // match linkColor
-        switch (link.type) {
-          case 'memberOf':
-            return 'orange'
-          case 'knows':
-            return 'purple'
-          case 'maintainer':
-            return 'red'
-          case 'softwareRequirement':
-            return 'cyan'
-          case 'tag':
-            return 'orange'
-          default:
-            return 'black'
-        }
-      })
+      // Colors are assigned by a dynamic function below (focus fade aware)
       instance.cooldownTime(3000)
       // Keep default tooltip label if desired
       instance.nodeLabel('name')
@@ -383,28 +357,101 @@ export const Graph = () => {
             return 'Unknown Link'
         }
       })
-      instance.linkColor((link) => {
-        // Invisible if spheres mode is on and link touches an organization
-        const spheresOn = GraphFilterState.get().organizationSpheres
-        const touchesOrg =
-          (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
-        if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
-        if (isProposed(link)) return '#9ca3af'
-        switch (link.type) {
-          case 'memberOf':
-            return 'orange'
-          case 'knows':
-            return 'purple'
-          case 'maintainer':
-            return 'red'
-          case 'softwareRequirement':
-            return 'cyan'
-          case 'tag':
-            return 'orange'
-          default:
-            return 'black'
+      // Apply dynamic color/opacity functions
+      const applyDynamicColors = () => {
+        if (!fgRef.current) return
+        const baseNodeColorByType = (t?: string) => {
+          if (t === 'person') return 'blue'
+          if (t === 'project') return 'orange'
+          if (t === 'organization') return 'green'
+          return 'gray'
         }
-      })
+
+        const baseLinkColor = (link: LinkRuntime) => {
+          // Invisible if spheres mode is on and link touches an organization
+          const spheresOn = GraphFilterState.get().organizationSpheres
+          const touchesOrg =
+            (link.source as any)?.type === 'organization' || (link.target as any)?.type === 'organization'
+          if (spheresOn && touchesOrg) return 'rgba(0,0,0,0)'
+          if (isProposed(link)) return '#9ca3af'
+          switch (link.type) {
+            case 'memberOf':
+              return 'orange'
+            case 'knows':
+              return 'purple'
+            case 'maintainer':
+              return 'red'
+            case 'softwareRequirement':
+              return 'cyan'
+            case 'tag':
+              return 'orange'
+            default:
+              return 'black'
+          }
+        }
+
+        const getFadeShades = () => {
+          const isDark = isDarkRef.current
+          return {
+            node: isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.35)', // neutral-700 vs neutral-200
+            link: isDark ? 'rgba(75,85,99,0.25)' : 'rgba(156,163,175,0.3)', // neutral-600 vs neutral-400
+            arrow: isDark ? 'rgba(75,85,99,0.25)' : 'rgba(156,163,175,0.3)'
+          }
+        }
+
+        const isLitNode = (node: NodeRuntime) => {
+          const fade = GraphFilterState.get().focusFade
+          const focused = FocusedNodeState.get()
+          if (!fade || !focused) return true
+          if (node.id === focused.id) return true
+          // neighbor if directly connected to focused via any link
+          const neighbors = new Set<string>()
+          for (const l of GraphState.get().links) {
+            if (l.source.id === focused.id) neighbors.add(l.target.id)
+            if (l.target.id === focused.id) neighbors.add(l.source.id)
+          }
+          return neighbors.has(node.id)
+        }
+
+        const isLitLink = (link: LinkRuntime) => {
+          const fade = GraphFilterState.get().focusFade
+          const focused = FocusedNodeState.get()
+          if (!fade || !focused) return true
+          // Only keep links lit that connect to the focused node
+          return link.source.id === focused.id || link.target.id === focused.id
+        }
+
+        fgRef.current.nodeColor((node) => {
+          const orgSpheres = GraphFilterState.get().organizationSpheres
+          if (orgSpheres && node.type === 'organization') return 'rgba(0,0,0,0.001)'
+          if (isLitNode(node as NodeRuntime)) return baseNodeColorByType((node as NodeRuntime).type)
+          return getFadeShades().node
+        })
+
+        fgRef.current.linkColor((link) => {
+          const c = baseLinkColor(link as LinkRuntime)
+          if (!GraphFilterState.get().focusFade) return c
+          if (isLitLink(link as LinkRuntime)) return c
+          return getFadeShades().link
+        })
+
+        fgRef.current.linkDirectionalArrowColor((link) => {
+          const c = baseLinkColor(link as LinkRuntime)
+          if (!GraphFilterState.get().focusFade) return c
+          if (isLitLink(link as LinkRuntime)) return c
+          return getFadeShades().arrow
+        })
+
+        // Also dim link opacity when faded
+        try {
+          ;(fgRef.current as any).linkOpacity((link: any) => {
+            if (!GraphFilterState.get().focusFade) return 0.3
+            return isLitLink(link as LinkRuntime) ? 0.3 : 0.12
+          })
+        } catch {}
+      }
+
+      applyDynamicColors()
       // Apply curvature and rotation for multi-links
       instance.linkCurvature((l) => l.curvature ?? 0)
       instance.linkCurveRotation((l) => l.curveRotation ?? 0)
@@ -498,6 +545,7 @@ export const Graph = () => {
   useEffect(() => {
     const applySceneTheme = (isDark: boolean) => {
       if (!fgRef.current) return
+      isDarkRef.current = isDark
       fgRef.current.backgroundColor(isDark ? '#000000' : '#f5f5f4')
       // Update all existing labels
       for (const [, label] of labelMap.current.entries()) {
@@ -509,6 +557,11 @@ export const Graph = () => {
           }
         } catch {}
       }
+      // Re-apply focus fade visuals to adjust faded shade for theme
+      try {
+        const prevData: any = (fgRef.current as any).graphData?.()
+        if (prevData) fgRef.current.graphData(prevData)
+      } catch {}
     }
 
     const handler = (e: any) => applySceneTheme(!!e?.detail?.isDark)
@@ -517,6 +570,90 @@ export const Graph = () => {
     window.addEventListener('themechange', handler as any)
     return () => window.removeEventListener('themechange', handler as any)
   }, [])
+
+  // Apply focus-fade visuals to labels and org spheres when focus/toggle/theme changes
+  useEffect(() => {
+    if (!fgRef.current) return
+    const focused = focusedNode
+    const fade = GraphFilterState.get().focusFade
+    const isDark = isDarkRef.current
+    const fadedTextColor = isDark ? '#6b7280' : '#9ca3af' // neutral-500 vs neutral-400
+    const fadedBg = isDark ? 'rgba(31,41,55,0.5)' : 'rgba(243,244,246,0.6)' // neutral-800 vs neutral-100
+
+    const neighbors = new Set<string>()
+    if (focused && fade) {
+      for (const l of GraphState.get().links) {
+        if (l.source.id === focused.id) neighbors.add(l.target.id)
+        if (l.target.id === focused.id) neighbors.add(l.source.id)
+      }
+    }
+
+    // Update labels
+    for (const [id, label] of labelMap.current.entries()) {
+      const node = GraphState.get().nodes.find((n) => n.id === id)
+      if (!node || !label || !label.material) continue
+      const lit = !fade || !focused ? true : id === focused.id || neighbors.has(id)
+      // Ensure transparency enabled
+      try {
+        label.material.transparent = true
+      } catch {}
+      if (lit) {
+        label.material.opacity = 1
+        label.color = isDark ? '#ffffff' : '#111111'
+        label.backgroundColor = isDark ? 'rgba(31,31,31,0.85)' : 'rgba(255,255,255,0.85)'
+      } else {
+        label.material.opacity = 0.35
+        label.color = fadedTextColor
+        label.backgroundColor = fadedBg
+      }
+      try {
+        label.material.needsUpdate = true
+      } catch {}
+    }
+
+    // Update org spheres
+    for (const [id, mesh] of orgSphereMap.current.entries()) {
+      const mat = mesh.material as ShaderMaterial | undefined
+      if (!mat || !(mat as any).uniforms) continue
+      const lit = !fade || !focused ? true : id === focused.id || neighbors.has(id)
+      const color = new Color(lit ? 'springgreen' : isDark ? '#4b5563' : '#9ca3af') // neutral-600/400
+      try {
+        ;(mat.uniforms as any).uColor.value = color
+        ;(mat.uniforms as any).uOpacity.value = lit ? 0.6 : 0.2
+        mat.needsUpdate = true
+      } catch {}
+    }
+
+    // Update default node meshes' opacity (skip org spheres and labels)
+    try {
+      const current: any = (fgRef.current as any).graphData?.()
+      const nodes: any[] = current?.nodes || []
+      for (const n of nodes) {
+        const rootObj: any = (n as any).__threeObj
+        if (!rootObj) continue
+        const lit = !fade || !focused ? true : n.id === focused.id || neighbors.has(n.id)
+        rootObj.traverse?.((obj: any) => {
+          if (obj?.type !== 'Mesh') return
+          if (obj?.userData?.__isOrgSphere) return
+          // Skip SpriteText labels (type 'Sprite')
+          if (obj?.isSprite) return
+          const mat = obj.material
+          if (!mat) return
+          try {
+            mat.transparent = true
+            mat.opacity = lit ? 1 : 0.45
+            mat.needsUpdate = true
+          } catch {}
+        })
+      }
+    } catch {}
+
+    // Trigger a graph refresh so dynamic color functions re-evaluate
+    try {
+      const prevData: any = (fgRef.current as any).graphData?.()
+      if (prevData) fgRef.current.graphData(prevData)
+    } catch {}
+  }, [focusedNode, GraphFilterState.get().focusFade, GraphFilterState.get().organizationSpheres])
 
   useEffect(() => {
     if (!focusedNode || !fgRef.current) return
@@ -649,17 +786,9 @@ export const Graph = () => {
     }
   }, [data, filters.visibleNodeTypes, filters.showProposedEdges, filters.organizationSpheres])
 
-  // When toggling organization spheres, update node colors and link strengths
+  // When toggling organization spheres, update node size/forces and keep dynamic colors
   useEffect(() => {
     if (!fgRef.current) return
-    // Hide org default nodes by making them nearly transparent when spheres are on
-    fgRef.current.nodeColor((node) => {
-      if (node.type === 'person') return 'blue'
-      if (node.type === 'project') return 'orange'
-      if (node.type === 'organization') return filters.organizationSpheres ? 'rgba(0,0,0,0.001)' : 'green'
-      return 'gray'
-    })
-
     // Shrink org nodes to near-zero size so default mesh is effectively hidden
     fgRef.current.nodeVal((node) => (filters.organizationSpheres && node.type === 'organization' ? 0.0001 : 1))
 
@@ -676,7 +805,7 @@ export const Graph = () => {
       linkForce.strength(0.5)
     }
 
-    // Force link color recalculation to apply invisibility
+    // Force color recalculation to apply invisibility
     const prevData: any = (fgRef.current as any).graphData?.()
     if (prevData) fgRef.current.graphData(prevData)
 

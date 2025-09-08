@@ -5,6 +5,7 @@ import { closeGraphConfigModal, GraphConfigModalOpenState } from '../../state/Gr
 import {
   ensureNodeTypes,
   GraphFilterState,
+  setFocusFade,
   setLabelSize,
   setNodeTypeVisibility,
   setOrganizationSpheres,
@@ -35,9 +36,21 @@ export function GraphConfigModal() {
       initialY={160}
       onClose={closeGraphConfigModal}
     >
-    <div className="text-[13px] text-neutral-700 dark:text-neutral-200 space-y-4">
+      <div className="text-[13px] text-neutral-700 dark:text-neutral-200 space-y-4">
         <div>
-      <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Labels</div>
+          <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Focus</div>
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={filters.focusFade}
+              onChange={(e) => setFocusFade(e.target.checked)}
+            />
+            <span>Fade non-focused nodes and links</span>
+          </label>
+        </div>
+        <div>
+          <div className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-2">Labels</div>
           <label className="flex items-center gap-3">
             <span className="text-[13px] whitespace-nowrap">Label size</span>
             <input
