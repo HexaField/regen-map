@@ -30,6 +30,7 @@ import {
   setFocusedNode
 } from '../../state/GraphState'
 import { SelectedProfileState } from '../../state/ProfileState'
+import { SearchQueryState } from '../../state/SearchState'
 import { dataSourceFetchers } from './dataSources'
 
 declare module 'three' {
@@ -167,6 +168,7 @@ export const Graph = () => {
 
   const [focusedNodes] = useSimpleStore(FocusedNodeState)
   const [profile, setProfile] = useSimpleStore(SelectedProfileState)
+  const [search] = useSimpleStore(SearchQueryState)
   // filters already declared above
 
   const updateOrgSpheres = useCallback(() => {
@@ -461,25 +463,67 @@ export const Graph = () => {
         const isLitNode = (node: NodeRuntime) => {
           const fade = GraphFilterState.get().focusFade
           const focusedArr = FocusedNodeState.get()
-          if (!fade || !focusedArr.length) return true
-          const focusIds = new Set(focusedArr.map((f) => f.id))
-          if (focusIds.has(node.id)) return true
-          // neighbor if directly connected to any focused via any link
-          const neighbors = new Set<string>()
-          for (const l of GraphState.get().links) {
-            if (focusIds.has(l.source.id)) neighbors.add(l.target.id)
-            if (focusIds.has(l.target.id)) neighbors.add(l.source.id)
+          const q = (SearchQueryState.get() || '').trim().toLowerCase()
+          const hasQueryMatches =
+            q.length > 0 && GraphState.get().nodes.some((n) => (n.name || '').toLowerCase().includes(q))
+          const nodeMatches = q.length > 0 && (node.name || '').toLowerCase().includes(q)
+
+          // Focus lit logic
+          let focusLit = true
+          if (fade && focusedArr.length) {
+            const focusIds = new Set(focusedArr.map((f) => f.id))
+            if (focusIds.has(node.id)) focusLit = true
+            else {
+              // neighbor if directly connected to any focused via any link
+              const neighbors = new Set<string>()
+              for (const l of GraphState.get().links) {
+                if (focusIds.has(l.source.id)) neighbors.add(l.target.id)
+                if (focusIds.has(l.target.id)) neighbors.add(l.source.id)
+              }
+              focusLit = neighbors.has(node.id)
+            }
           }
-          return neighbors.has(node.id)
+
+          // Combine with search: if search is active and has matches
+          if (hasQueryMatches) {
+            if (!fade || !focusedArr.length) {
+              // Search-only: only matching nodes are lit
+              return !!nodeMatches
+            }
+            // Both active: union of focus-lit and search matches
+            return focusLit || nodeMatches
+          }
+
+          // No search; return based on focus fade
+          if (!fade || !focusedArr.length) return true
+          return focusLit
         }
 
         const isLitLink = (link: LinkRuntime) => {
           const fade = GraphFilterState.get().focusFade
           const focusedArr = FocusedNodeState.get()
-          if (!fade || !focusedArr.length) return true
-          // Only keep links lit that connect to any focused node
+          const q = (SearchQueryState.get() || '').trim().toLowerCase()
+          const hasQueryMatches =
+            q.length > 0 && GraphState.get().nodes.some((n) => (n.name || '').toLowerCase().includes(q))
+          const sMatch = q.length > 0 && (link.source.name || '').toLowerCase().includes(q)
+          const tMatch = q.length > 0 && (link.target.name || '').toLowerCase().includes(q)
+          const searchLit = hasQueryMatches ? sMatch && tMatch : true
+
+          // Focus logic
           const focusIds = new Set(focusedArr.map((f) => f.id))
-          return focusIds.has(link.source.id) || focusIds.has(link.target.id)
+          const focusLit =
+            fade && focusedArr.length ? focusIds.has(link.source.id) || focusIds.has(link.target.id) : true
+
+          if (hasQueryMatches) {
+            if (!fade || !focusedArr.length) {
+              // Search-only: only links fully between matching nodes
+              return searchLit
+            }
+            // Both active: union of focus-lit links and search-lit links
+            return focusLit || searchLit
+          }
+          // No search; respect focus
+          return focusLit
         }
 
         fgRef.current.nodeColor((node) => {
@@ -494,14 +538,12 @@ export const Graph = () => {
           const orgSpheres = GraphFilterState.get().organizationSpheres
           if (orgSpheres && (link.source.type === 'organization' || link.target.type === 'organization'))
             return 'rgba(0,0,0,0.001)'
-          if (!GraphFilterState.get().focusFade) return c
           if (isLitLink(link as LinkRuntime)) return c
           return getFadeShades().link
         })
 
         fgRef.current.linkDirectionalArrowColor((link) => {
           const c = baseLinkColor(link as LinkRuntime)
-          if (!GraphFilterState.get().focusFade) return c
           if (isLitLink(link as LinkRuntime)) return c
           return getFadeShades().arrow
         })
@@ -600,11 +642,17 @@ export const Graph = () => {
       }
     }
 
+    const q = (SearchQueryState.get() || '').trim().toLowerCase()
+    const hasQueryMatches = q.length > 0 && GraphState.get().nodes.some((n) => (n.name || '').toLowerCase().includes(q))
+
     // Update labels
     for (const [id, label] of labelMap.current.entries()) {
       const node = GraphState.get().nodes.find((n) => n.id === id)
       if (!node || !label || !label.material) continue
-      const lit = !fade || !focusedArr.length ? true : focusIds.has(id) || neighbors.has(id)
+      let focusLit = !fade || !focusedArr.length ? true : focusIds.has(id) || neighbors.has(id)
+      const searchLit = hasQueryMatches ? (node.name || '').toLowerCase().includes(q) : true
+      const lit =
+        hasQueryMatches && fade && focusedArr.length ? focusLit || searchLit : hasQueryMatches ? searchLit : focusLit
       // Ensure transparency enabled
       try {
         label.material.transparent = true
@@ -627,7 +675,12 @@ export const Graph = () => {
     for (const [id, mesh] of orgSphereMap.current.entries()) {
       const mat = mesh.material as ShaderMaterial | undefined
       if (!mat || !mat.uniforms) continue
-      const lit = !fade || !focusedArr.length ? true : focusIds.has(id) || neighbors.has(id)
+      let focusLit = !fade || !focusedArr.length ? true : focusIds.has(id) || neighbors.has(id)
+      const searchLit = hasQueryMatches
+        ? (GraphState.get().nodes.find((n) => n.id === id)?.name || '').toLowerCase().includes(q)
+        : true
+      const lit =
+        hasQueryMatches && fade && focusedArr.length ? focusLit || searchLit : hasQueryMatches ? searchLit : focusLit
       const color = new Color(lit ? 'springgreen' : isDark ? '#4b5563' : '#9ca3af') // neutral-600/400
       try {
         mat.uniforms.uColor.value = color
@@ -643,7 +696,10 @@ export const Graph = () => {
       for (const n of nodes) {
         const rootObj = n.__threeObj
         if (!rootObj) continue
-        const lit = !fade || !focusedArr.length ? true : focusIds.has(n.id) || neighbors.has(n.id)
+        let focusLit = !fade || !focusedArr.length ? true : focusIds.has(n.id) || neighbors.has(n.id)
+        const searchLit = hasQueryMatches ? (n.name || '').toLowerCase().includes(q) : true
+        const lit =
+          hasQueryMatches && fade && focusedArr.length ? focusLit || searchLit : hasQueryMatches ? searchLit : focusLit
         rootObj.traverse((obj: Object3D | Mesh | Sprite) => {
           if (obj?.type !== 'Mesh') return
           if (obj?.userData?.__isOrgSphere) return
@@ -665,7 +721,7 @@ export const Graph = () => {
       const prevData = fgRef.current.graphData()
       if (prevData) fgRef.current.graphData(prevData)
     } catch {}
-  }, [focusedNodes, GraphFilterState.get().focusFade, GraphFilterState.get().organizationSpheres])
+  }, [focusedNodes, GraphFilterState.get().focusFade, GraphFilterState.get().organizationSpheres, search])
 
   useEffect(() => {
     if (!focusedNodes.length || !fgRef.current) return

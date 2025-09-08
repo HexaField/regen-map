@@ -69,7 +69,7 @@ export function TopControls() {
 
       {/* Right search and node info button (hidden on mobile; shown from sm+) */}
       <div className="z-30 right-6 hidden sm:flex items-center gap-3">
-        {/* <Input placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="w-[260px]" /> */}
+        <Input placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="w-[260px]" />
         <Button variant="ghost" className="rounded-full" onClick={toggleGraphConfigModal}>
           Graph Settings
         </Button>
