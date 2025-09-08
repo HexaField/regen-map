@@ -7,6 +7,7 @@ import SpriteText from 'three-spritetext'
 import { CommunityCardsState } from '../../state/CommunityCardsState'
 import { ensureNodeTypes, GraphFilterState } from '../../state/GraphFilterState'
 import {
+  closeFocusedNode,
   FocusedNodeState,
   GraphDataRuntimeType,
   GraphDataType,
@@ -711,12 +712,15 @@ export const Graph = () => {
     fgRef.current?.zoomToFit(400, 40)
   }, [fgRef.current])
 
-  // Bind F key to focus
+  // Bind F key to focus and Escape to clear selection
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'f') {
         event.preventDefault()
         focus()
+      } else if (event.key === 'Escape') {
+        // Do not prevent default so other UI (e.g., modals) can also respond if needed
+        closeFocusedNode()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
