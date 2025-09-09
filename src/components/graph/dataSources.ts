@@ -1,6 +1,6 @@
 import type { GraphDataType } from '../../state/GraphState'
-import { fetchSheets } from './GoogleSheets'
-import { fetchCTA } from './Murmurations'
+import { fetchCTA } from './fetchCTA'
+import { fetchSheets } from './fetchSheets'
 
 // A fetcher returns nodes+links for a dataset
 export type DataFetcher = () => Promise<GraphDataType>
