@@ -171,13 +171,12 @@ export const Graph = () => {
   const fgRef = useRef<ForceGraph3DInstance<NodeRuntime, LinkRuntime> | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const orgSphereMap = useRef<Map<string, Mesh>>(new Map())
-  const labelMap = useRef<Map<string, any>>(new Map())
+  const labelMap = useRef<Map<string, SpriteText>>(new Map())
   const isDarkRef = useRef<boolean>(document.documentElement.classList.contains('dark'))
 
   const [focusedNodes] = useSimpleStore(FocusedNodeState)
-  const [profile, setProfile] = useSimpleStore(SelectedProfileState)
+  const [profile] = useSimpleStore(SelectedProfileState)
   const [search] = useSimpleStore(SearchQueryState)
-  // filters already declared above
 
   const updateOrgSpheres = useCallback(() => {
     if (!fgRef.current) return
@@ -458,16 +457,11 @@ export const Graph = () => {
         }
         label.padding = 2
         // mark label for interaction filtering
-        try {
-          label.userData = label.userData || {}
-          label.userData.__isOrgLabel = node.type === 'organization'
-          label.userData.__nodeId = node.id
-        } catch {}
+        label.userData = label.userData || {}
         if (label.material) {
           label.material.depthWrite = false
           label.material.depthTest = false
         }
-        // @ts-ignore - renderOrder exists at runtime on Object3D
         label.renderOrder = 999
         group.add(label)
         // Track label for dynamic visibility toggles
@@ -516,14 +510,9 @@ export const Graph = () => {
           })
           const sphere = new Mesh(new SphereGeometry(1, 20, 20), haloMaterial)
           sphere.visible = false
-          // Make sphere non-pickable so clicks go through only to label
-          // eslint-disable-next-line @typescript-eslint/no-empty-function
           sphere.raycast = () => {}
-          try {
-            sphere.userData = sphere.userData || {}
-            sphere.userData.__isOrgSphere = true
-            sphere.userData.__nodeId = node.id
-          } catch {}
+          sphere.userData = sphere.userData || {}
+          sphere.userData.__isOrgSphere = true
           // keep label centered; updateOrgSpheres will scale sphere only. Optionally, lift label a bit for readability
           label.position.set(0, 0, 0)
           group.add(sphere)
@@ -587,11 +576,9 @@ export const Graph = () => {
     resizeObserverRef.current.observe(containerRef.current)
 
     return () => {
-      try {
-        if (containerRef.current && resizeObserverRef.current) {
-          resizeObserverRef.current.unobserve(containerRef.current)
-        }
-      } catch {}
+      if (containerRef.current && resizeObserverRef.current) {
+        resizeObserverRef.current.unobserve(containerRef.current)
+      }
     }
   }, [])
 
@@ -603,23 +590,18 @@ export const Graph = () => {
       fgRef.current.backgroundColor(isDark ? '#000000' : '#f5f5f4')
       // Update all existing labels
       for (const [, label] of labelMap.current.entries()) {
-        try {
-          label.color = isDark ? '#ffffff' : '#111111'
-          label.backgroundColor = isDark ? 'rgba(31,31,31,0.85)' : 'rgba(255,255,255,0.85)'
-          if (label.material) {
-            label.material.needsUpdate = true
-          }
-        } catch {}
+        label.color = isDark ? '#ffffff' : '#111111'
+        label.backgroundColor = isDark ? 'rgba(31,31,31,0.85)' : 'rgba(255,255,255,0.85)'
+        if (label.material) {
+          label.material.needsUpdate = true
+        }
       }
       // Re-apply focus fade visuals to adjust faded shade for theme
-      try {
-        const prevData = fgRef.current.graphData?.()
-        if (prevData) fgRef.current.graphData(prevData)
-      } catch {}
+      const prevData = fgRef.current.graphData?.()
+      if (prevData) fgRef.current.graphData(prevData)
     }
 
     const handler = (e: any) => applySceneTheme(!!e?.detail?.isDark)
-    // Apply immediately on mount using current class
     applySceneTheme(document.documentElement.classList.contains('dark'))
     window.addEventListener('themechange', handler)
     return () => window.removeEventListener('themechange', handler)
@@ -683,45 +665,37 @@ export const Graph = () => {
       const lit =
         hasQueryMatches && fade && focusedArr.length ? focusLit || searchLit : hasQueryMatches ? searchLit : focusLit
       const color = new Color(lit ? 'springgreen' : isDark ? '#4b5563' : '#9ca3af') // neutral-600/400
-      try {
-        mat.uniforms.uColor.value = color
-        mat.uniforms.uOpacity.value = lit ? 0.6 : 0.2
-        mat.needsUpdate = true
-      } catch {}
+      mat.uniforms.uColor.value = color
+      mat.uniforms.uOpacity.value = lit ? 0.6 : 0.2
+      mat.needsUpdate = true
     }
 
     // Update default node meshes' opacity (skip org spheres and labels)
-    try {
-      const current = fgRef.current.graphData?.()
-      const nodes = current?.nodes || []
-      for (const n of nodes) {
-        const rootObj = n.__threeObj
-        if (!rootObj) continue
-        let focusLit = !fade || !focusedArr.length ? true : focusIds.has(n.id) || neighbors.has(n.id)
-        const searchLit = hasQueryMatches ? (n.name || '').toLowerCase().includes(q) : true
-        const lit =
-          hasQueryMatches && fade && focusedArr.length ? focusLit || searchLit : hasQueryMatches ? searchLit : focusLit
-        rootObj.traverse((obj: Object3D | Mesh | Sprite) => {
-          if (obj?.type !== 'Mesh') return
-          if (obj?.userData?.__isOrgSphere) return
-          // Skip SpriteText labels (type 'Sprite')
-          if ('isSprite' in obj) return
-          const mat = (obj as any).material
-          if (!mat) return
-          try {
-            mat.transparent = true
-            mat.opacity = lit ? 1 : 0.45
-            mat.needsUpdate = true
-          } catch {}
-        })
-      }
-    } catch {}
+    const current = fgRef.current.graphData?.()
+    const nodes = current?.nodes || []
+    for (const n of nodes) {
+      const rootObj = n.__threeObj
+      if (!rootObj) continue
+      let focusLit = !fade || !focusedArr.length ? true : focusIds.has(n.id) || neighbors.has(n.id)
+      const searchLit = hasQueryMatches ? (n.name || '').toLowerCase().includes(q) : true
+      const lit =
+        hasQueryMatches && fade && focusedArr.length ? focusLit || searchLit : hasQueryMatches ? searchLit : focusLit
+      rootObj.traverse((obj: Object3D | Mesh | Sprite) => {
+        if (obj?.type !== 'Mesh') return
+        if (obj?.userData?.__isOrgSphere) return
+        // Skip SpriteText labels (type 'Sprite')
+        if ('isSprite' in obj) return
+        const mat = (obj as any).material
+        if (!mat) return
+        mat.transparent = true
+        mat.opacity = lit ? 1 : 0.45
+        mat.needsUpdate = true
+      })
+    }
 
     // Trigger a graph refresh so dynamic color functions re-evaluate
-    try {
-      const prevData = fgRef.current.graphData()
-      if (prevData) fgRef.current.graphData(prevData)
-    } catch {}
+    const prevData = fgRef.current.graphData()
+    if (prevData) fgRef.current.graphData(prevData)
   }, [focusedNodes, GraphFilterState.get().focusFade, GraphFilterState.get().organizationSpheres, search])
 
   useEffect(() => {
@@ -832,26 +806,6 @@ export const Graph = () => {
     fgRef.current.graphData({ nodes: filteredNodes, links: filteredLinks })
     // Trigger sphere resize/visibility update now (not just on ticks)
     updateOrgSpheres()
-    // Ensure org default meshes are not pickable when spheres mode is on (labels remain clickable)
-    try {
-      const spheresOn = GraphFilterState.get().organizationSpheres
-      if (spheresOn) {
-        for (const n of filteredNodes) {
-          if (n.type !== 'organization') continue
-          const rootObj = n.__threeObj
-          if (!rootObj) continue
-          rootObj.traverse?.((obj) => {
-            if (obj?.type === 'Mesh' && !obj?.userData?.__isOrgSphere) {
-              if (!obj.__origRaycast && typeof obj.raycast === 'function') {
-                obj.__origRaycast = obj.raycast
-              }
-              // eslint-disable-next-line @typescript-eslint/no-empty-function
-              obj.raycast = () => {}
-            }
-          })
-        }
-      }
-    } catch {}
     // try to fit the graph nicely on first load of data
     if (data.nodes?.length) {
       // setTimeout(focus, 0)
@@ -886,29 +840,6 @@ export const Graph = () => {
     // Force color recalculation to apply invisibility
     const prevData = fgRef.current.graphData?.()
     if (prevData) fgRef.current.graphData(prevData)
-
-    // Toggle org node default mesh pickability: when spheres are on, only labels should be clickable
-    try {
-      const current = fgRef.current.graphData?.()
-      const nodes = current?.nodes || []
-      for (const n of nodes) {
-        if (n.type !== 'organization') continue
-        const rootObj = n.__threeObj
-        if (!rootObj) continue
-        rootObj.traverse?.((obj) => {
-          if (obj?.type !== 'Mesh') return
-          const isOrgSphere = !!obj?.userData?.__isOrgSphere
-          if (isOrgSphere) return // sphere already non-pickable
-          if (filters.organizationSpheres) {
-            if (!obj.__origRaycast && typeof obj.raycast === 'function') obj.__origRaycast = obj.raycast
-            // eslint-disable-next-line @typescript-eslint/no-empty-function
-            obj.raycast = () => {}
-          } else if (obj.__origRaycast) {
-            obj.raycast = obj.__origRaycast
-          }
-        })
-      }
-    } catch {}
   }, [filters.organizationSpheres])
 
   // Track node types in a separate effect to seed filter defaults
