@@ -1,4 +1,3 @@
-
 export const fetchJSON = async <T extends unknown>(url: string): Promise<T> => {
   const response = await fetch(url)
   if (!response.ok) {
