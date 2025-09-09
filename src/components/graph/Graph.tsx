@@ -33,12 +33,6 @@ import { SelectedProfileState } from '../../state/ProfileState'
 import { SearchQueryState } from '../../state/SearchState'
 import { dataSourceFetchers } from './dataSources'
 
-declare module 'three' {
-  interface Object3D {
-    __origRaycast?: (this: Object3D, ...args: any[]) => any
-  }
-}
-
 const getLinkKey = (link: Link | LinkRuntime) =>
   `${typeof link.source === 'string' ? link.source : link.source.id}-${link.type}-${typeof link.target === 'string' ? link.target : link.target.id}`
 
