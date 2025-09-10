@@ -58,7 +58,8 @@ jobs:
       - name: Build (with configurable base path)
         env:
           PUBLIC_BASE_PATH: ${{ secrets.PUBLIC_BASE_PATH }}
-          VITE_GOOGLE_SHEETS_API: ${{ secrets.VITE_GOOGLE_SHEETS_API }}
+          VITE_BASEROW_API_TOKEN: ${{ secrets.VITE_BASEROW_API_TOKEN }}
+          VITE_BASEROW_API_URL: ${{ secrets.VITE_BASEROW_API_URL }}
         run: |
           echo "Building with base path: ${PUBLIC_BASE_PATH:-/}"
           npm run build -- --base "${PUBLIC_BASE_PATH:-/}"
