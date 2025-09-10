@@ -7,7 +7,8 @@ interface ViteTypeOptions {
 }
 
 interface ImportMetaEnv {
-  readonly VITE_GOOGLE_SHEETS_API: string
+  readonly VITE_BASEROW_API_TOKEN: string
+  readonly VITE_BASEROW_API_URL?: string
 }
 
 interface ImportMeta {
