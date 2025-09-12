@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 
-import { closeGraphConfigModal, toggleGraphConfigModal } from '../../state/GraphConfigModalState'
 import { closeFocusedNode } from '../../state/GraphState'
-import { closeLeftDock, toggleLeftDock } from '../../state/LeftDockState'
+import { closeModal, toggleModal } from '../../state/ModalState'
+import { GraphConfigModalContent } from '../graph/GraphConfigModal'
 import { Button } from '../ui/Button'
 import { GitHubIcon } from '../ui/GitHubIcon'
 
@@ -15,10 +15,9 @@ export function MobileActions() {
       label: 'Graph Settings',
       onClick: () => {
         // close others
-        closeLeftDock()
         closeFocusedNode()
         // then toggle selected
-        toggleGraphConfigModal()
+        toggleModal('graphConfig', GraphConfigModalContent)
       }
     },
     // Theme moved into Graph Settings
@@ -33,8 +32,7 @@ export function MobileActions() {
     {
       label: 'Node Information',
       onClick: () => {
-        closeGraphConfigModal()
-        closeLeftDock()
+        closeModal('graphConfig')
       }
     }
   ]

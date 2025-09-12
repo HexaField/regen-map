@@ -1,26 +1,24 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import React from 'react'
 
-import { toggleAboutModal } from '../../state/AboutModalState'
 import { AppTab, AppTabState } from '../../state/AppTabsState'
-import { toggleGraphConfigModal } from '../../state/GraphConfigModalState'
 import { closeFocusedNode, FocusedNodeState, GraphState } from '../../state/GraphState'
-import { LeftDockOpenState, openLeftDock, toggleLeftDock } from '../../state/LeftDockState'
+import { toggleModal } from '../../state/ModalState'
 import { SearchQueryState } from '../../state/SearchState'
 import { ViewMode, ViewModeState } from '../../state/ViewModeState'
 import { applyTheme, getTheme, ThemeMode } from '../../theme'
+import { GraphConfigModalContent } from '../graph/GraphConfigModal'
 import { Button } from '../ui/Button'
 import { GitHubIcon } from '../ui/GitHubIcon'
 import { Input } from '../ui/Input'
 import { Segmented } from '../ui/Segmented'
 import { Tabs } from '../ui/Tabs'
-import { AboutModal } from './AboutModal'
+import { AboutModalContent } from './AboutModal'
 
 export function TopControls() {
   const [tab, setTab] = useSimpleStore(AppTabState)
   const [mode, setMode] = useSimpleStore(ViewModeState)
   const [query, setQuery] = useSimpleStore(SearchQueryState)
-  const [leftOpen] = useSimpleStore(LeftDockOpenState)
   const [focusedNodes, setFocusedNodes] = useSimpleStore(FocusedNodeState)
   const [theme, setTheme] = React.useState<ThemeMode>(() => (typeof window !== 'undefined' ? getTheme() : 'system'))
 
@@ -42,15 +40,8 @@ export function TopControls() {
           value={tab as string}
           onChange={(id) => {
             const clicked = id as AppTab
-            if (clicked === tab) {
-              // Clicking same tab toggles left dock; also close right panel for a clean view
-              toggleLeftDock()
-              closeNodePanel()
-              return
-            }
-            // Switching tabs selects tab and ensures left dock is open
+            // Placeholder tab logic
             setTab(clicked)
-            if (!leftOpen) openLeftDock()
           }}
         />
       </div> */}
@@ -89,7 +80,11 @@ export function TopControls() {
           }}
           className="w-[260px]"
         />
-        <Button variant="ghost" className="rounded-full" onClick={toggleGraphConfigModal}>
+        <Button
+          variant="ghost"
+          className="rounded-full"
+          onClick={() => toggleModal('graphConfig', GraphConfigModalContent)}
+        >
           Graph Settings
         </Button>
         <Button
@@ -106,7 +101,7 @@ export function TopControls() {
       <div className="z-30 hidden p-6 sm:flex items-center gap-3">
         <button
           type="button"
-          onClick={toggleAboutModal}
+          onClick={() => toggleModal('about', AboutModalContent)}
           className="h-12 w-12 flex items-center justify-center rounded-full border-1 border-neutral-800 dark:border-neutral-200 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
           aria-label="About this project"
         >
@@ -122,7 +117,6 @@ export function TopControls() {
           <GitHubIcon size={30} />
         </a>
       </div>
-      <AboutModal />
     </div>
   )
 }
