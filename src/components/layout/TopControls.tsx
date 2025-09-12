@@ -1,6 +1,7 @@
 import { useSimpleStore } from '@hexafield/simple-store/react'
 import React from 'react'
 
+import { toggleAboutModal } from '../../state/AboutModalState'
 import { AppTab, AppTabState } from '../../state/AppTabsState'
 import { toggleGraphConfigModal } from '../../state/GraphConfigModalState'
 import { closeFocusedNode, FocusedNodeState, GraphState } from '../../state/GraphState'
@@ -13,6 +14,7 @@ import { GitHubIcon } from '../ui/GitHubIcon'
 import { Input } from '../ui/Input'
 import { Segmented } from '../ui/Segmented'
 import { Tabs } from '../ui/Tabs'
+import { AboutModal } from './AboutModal'
 
 export function TopControls() {
   const [tab, setTab] = useSimpleStore(AppTabState)
@@ -100,18 +102,27 @@ export function TopControls() {
         </Button>
       </div>
 
-      {/* GitHub icon all the way on the right (hidden on mobile; shown from sm+) */}
-      <div className="z-30 hidden p-6 sm:flex">
+      {/* About (left) + GitHub buttons (hidden on mobile; shown from sm+) */}
+      <div className="z-30 hidden p-6 sm:flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleAboutModal}
+          className="h-12 w-12 flex items-center justify-center rounded-full border-1 border-neutral-800 dark:border-neutral-200 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          aria-label="About this project"
+        >
+          <span className="inline-block text-[18px] leading-none font-semibold">?</span>
+        </button>
         <a
           href="https://github.com/HexaField/regen-map"
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          className="h-12 w-12 flex items-center justify-center rounded-full border-1 border-neutral-800 dark:border-neutral-200 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
           aria-label="View on GitHub"
         >
-          <GitHubIcon size={20} />
+          <GitHubIcon size={30} />
         </a>
       </div>
+      <AboutModal />
     </div>
   )
 }
