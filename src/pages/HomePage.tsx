@@ -19,13 +19,13 @@ export function HomePage() {
   const [tab] = useSimpleStore(AppTabState)
 
   // Manage Panels modal based on tab selection
-  React.useEffect(() => {
-    if (tab === 'Community Data') {
-      if (!isModalOpen('panels')) openModal('panels', () => <LeftPanels />)
-    } else {
-      if (isModalOpen('panels')) closeModal('panels')
-    }
-  }, [tab])
+  // React.useEffect(() => {
+  //   if (tab === 'Community Data') {
+  //     if (!isModalOpen('panels')) openModal('panels', () => <LeftPanels />)
+  //   } else {
+  //     if (isModalOpen('panels')) closeModal('panels')
+  //   }
+  // }, [tab])
 
   // Manage Node Information modal based on focused nodes
   React.useEffect(() => {
