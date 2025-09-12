@@ -1,9 +1,4 @@
-import { useSimpleStore } from '@hexafield/simple-store/react'
 import React from 'react'
-
-import { FocusedNodeState } from '../../state/GraphState'
-import { closeLeftDock, LeftDockOpenState } from '../../state/LeftDockState'
-import { DraggableResizableModal } from '../ui/DraggableResizableModal'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -38,47 +33,5 @@ export function TopCenter({ children }: { children: React.ReactNode }) {
     <div className="fixed top-16 inset-x-0 z-30 flex justify-center" id="top-center">
       {children}
     </div>
-  )
-}
-
-export function LeftDock({ children }: { children: React.ReactNode }) {
-  const [open] = useSimpleStore(LeftDockOpenState)
-  if (!open) return null
-  return (
-    <DraggableResizableModal
-      title="Panels"
-      initialWidth={360}
-      initialHeight={520}
-      initialX={24}
-      initialY={112}
-      minWidth={280}
-      minHeight={240}
-      onClose={closeLeftDock}
-    >
-      {children}
-    </DraggableResizableModal>
-  )
-}
-
-export function RightDock({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useSimpleStore(FocusedNodeState)
-  if (!open.length) return null
-  // Compute a sensible initial X so the panel starts near the right edge
-  const initialWidth = 360
-  const margin = 24
-  const initialX = typeof window !== 'undefined' ? Math.max(margin, window.innerWidth - initialWidth - margin) : 960
-  return (
-    <DraggableResizableModal
-      title="Node Information"
-      initialWidth={initialWidth}
-      initialHeight={600}
-      initialX={initialX}
-      initialY={112}
-      minWidth={320}
-      minHeight={260}
-      onClose={() => setOpen([])}
-    >
-      {children}
-    </DraggableResizableModal>
   )
 }
